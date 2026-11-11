@@ -1,2 +1,2 @@
-# wt-app-prototype
-WT App Prototype
+# ttt-app-prototype
+TTT App Prototype
