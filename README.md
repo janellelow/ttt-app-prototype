@@ -1,2 +1,2 @@
-# ttt-app-prototype
-TTT App Prototype
+# TTT App Prototype
+
