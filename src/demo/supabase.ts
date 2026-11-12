@@ -56,8 +56,11 @@ function demoBar() {
   const options = PERSONAS.filter((p) => allowed.includes(p.id))
     .map((p) => `<option value="${p.id}"${p.id === ME ? " selected" : ""}>${p.label}</option>`)
     .join("");
+  const other = isConsole
+    ? `<a href="../index.html">Open the mini app</a>`
+    : `<a href="console/index.html">Open the leaders' web console</a>`;
   bar.innerHTML = `<span><strong>Demo</strong> · sample data, nothing is saved</span>
-    <label>Viewing as <select aria-label="Viewing as">${options}</select></label>`;
+    <label>Viewing as <select aria-label="Viewing as">${options}</select></label>${other}`;
   bar.querySelector("select")!.addEventListener("change", (e) => {
     store(personaKey, (e.target as HTMLSelectElement).value);
     location.reload();
@@ -65,6 +68,7 @@ function demoBar() {
   const style = document.createElement("style");
   style.textContent = `.demo-bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:center;
     padding:7px 16px;background:#1c1c1a;color:#f7f7f5;font:600 12px/1.3 Manrope,system-ui,sans-serif}
+    .demo-bar a{color:#dde6db;text-decoration:underline;text-underline-offset:2px}
     .demo-bar select{margin-left:6px;font:inherit;color:#1c1c1a;background:#f7f7f5;border:none;border-radius:999px;padding:3px 8px}`;
   document.head.appendChild(style);
   document.body.prepend(bar);
