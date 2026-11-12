@@ -7,8 +7,19 @@ export const supabaseConfigured = Boolean(url && anonKey);
 
 // The anon key is public by design: the database's row level security rules
 // decide what every signed-in person may read or change.
+/** The web console (console/index.html sets data-app="console") vs the Telegram mini app. */
+export const isConsole = typeof document !== "undefined" && document.documentElement.dataset.app === "console";
+
 export const supabase = createClient(url ?? "http://localhost", anonKey ?? "missing", {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: "ttt-auth" },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    // Separate sign-ins, so using both apps in one browser never mixes them up.
+    storageKey: isConsole ? "ttt-console-auth" : "ttt-auth",
+    // Google sign-in for the web console comes back with a code in the URL.
+    flowType: isConsole ? "pkce" : "implicit",
+    detectSessionInUrl: isConsole,
+  },
 });
 
 export const functionsUrl = `${url}/functions/v1`;

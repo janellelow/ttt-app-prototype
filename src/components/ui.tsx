@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { initials } from "../lib/format";
-import type { Role } from "../lib/types";
+import { ROLE_LABEL, type Role } from "../lib/types";
 import { Icon } from "./Icon";
 
 export function Avatar({ name, photo, large }: { name: string; photo?: string | null; large?: boolean }) {
@@ -13,7 +13,7 @@ export function Avatar({ name, photo, large }: { name: string; photo?: string | 
 
 export function RoleBadge({ role }: { role: Role }) {
   if (role === "trainee") return null;
-  return <span className="badge badge--role">{role === "admin" ? "Admin" : "Trainer"}</span>;
+  return <span className="badge badge--role">{ROLE_LABEL[role]}</span>;
 }
 
 export function PrivateBadge({ children }: { children: ReactNode }) {

@@ -3,7 +3,8 @@
 export type IconName =
   | "community" | "learn" | "mic" | "wrapped" | "bell" | "play" | "pause" | "stop"
   | "photo" | "link" | "text" | "check" | "lock" | "back" | "close" | "chevron"
-  | "plus" | "send" | "heart" | "reply" | "settings" | "trash" | "quiz" | "video";
+  | "plus" | "send" | "heart" | "reply" | "settings" | "trash" | "quiz" | "video"
+  | "journey" | "edit" | "flag" | "home";
 
 const paths: Record<IconName, JSX.Element> = {
   community: (
@@ -25,6 +26,16 @@ const paths: Record<IconName, JSX.Element> = {
       <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
     </>
   ),
+  journey: (
+    <>
+      <circle cx="6" cy="18" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5" />
+    </>
+  ),
+  edit: <path d="M4 20h4L19 9l-4-4L4 16z" />,
+  home: <path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" />,
+  flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   wrapped: <path d="M12 3l2.4 5.6L20 11l-5.6 2.4L12 19l-2.4-5.6L4 11l5.6-2.4z" />,
   bell: (
     <>

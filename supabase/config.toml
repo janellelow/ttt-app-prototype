@@ -1,0 +1,35 @@
+# Minimal Supabase CLI config for this project.
+# Run `supabase link --project-ref <your-ref>` once; the CLI fills in the rest.
+
+project_id = "ttt-app"
+
+[functions.telegram-auth]
+# This function is how people sign in, so it is called before they have a
+# session. It checks Telegram's signature itself instead.
+verify_jwt = false
+
+[functions.console-auth]
+# Called with the Google sign-in's session; the function checks it itself.
+verify_jwt = true
+
+[functions.console-access]
+verify_jwt = true
+
+[auth]
+# Accounts are only created by the telegram-auth and console-access functions.
+# Google sign-in still works: console-access creates the account first, and
+# Google is linked to it on the first sign-in.
+enable_signup = false
+# Where the web console lives, so Google can send people back to it.
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/console/"]
+
+# Note: do NOT add `[auth.email] enable_signup = false`. The CLI turns that
+# into "email provider disabled", which also blocks the password sign-in the
+# Telegram and console functions rely on.
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+skip_nonce_check = false

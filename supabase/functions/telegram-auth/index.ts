@@ -11,38 +11,19 @@
 // SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  accountEmail,
+  accountPassword,
+  corsHeaders,
+  hmac,
+  json,
+  timingSafeEqual,
+  toHex,
+} from "../_shared/accounts.ts";
 
 const MAX_AGE_SECONDS = 60 * 60 * 24; // initData older than a day is refused
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
 const encoder = new TextEncoder();
-
-async function hmac(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    key,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(data));
-}
-
-function toHex(buf: ArrayBuffer): string {
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
 
 // https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
 async function verifyInitData(initData: string, botToken: string) {
@@ -76,13 +57,6 @@ async function verifyInitData(initData: string, botToken: string) {
   return user;
 }
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -112,8 +86,8 @@ Deno.serve(async (req) => {
   // Each Telegram account maps to one hidden email + password account.
   // The password is derived from a server-only secret, so it can never be
   // guessed and is never shown to anyone.
-  const email = `tg-${tgUser.id}@telegram.invalid`;
-  const password = toHex(await hmac(encoder.encode(pepper), String(tgUser.id)));
+  const email = accountEmail(tgUser.id);
+  const password = await accountPassword(pepper, tgUser.id);
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const anon = createClient(url, anonKey, { auth: { persistSession: false } });
@@ -126,9 +100,12 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: { telegram_id: tgUser.id },
     });
-    if (created.error) return json({ error: "Could not create account" }, 500);
+    // Sign in either way: if creating failed, a parallel first sign-in (a
+    // double tap, or a retry) has usually just created the same account.
     ({ data, error } = await anon.auth.signInWithPassword({ email, password }));
-    if (error || !data.session) return json({ error: "Could not sign in" }, 500);
+    if (error || !data.session) {
+      return json({ error: created.error ? "Could not create account" : "Could not sign in" }, 500);
+    }
   }
 
   const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ").slice(0, 80) ||

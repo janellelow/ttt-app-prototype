@@ -8,12 +8,13 @@ import { Community } from "./pages/Community";
 import { Course } from "./pages/Course";
 import { Feedback } from "./pages/Feedback";
 import { FeedbackThread } from "./pages/FeedbackThread";
+import { Journey } from "./pages/Journey";
 import { Learn } from "./pages/Learn";
 import { Manage } from "./pages/Manage";
 import { QuizPage } from "./pages/Quiz";
 import { Wrapped } from "./pages/Wrapped";
 
-const TAB_ROOTS = ["/", "/learn", "/feedback"];
+const TAB_ROOTS = ["/", "/journey", "/learn", "/feedback"];
 
 /** Shows Telegram's own back button on inner screens. */
 function TelegramBackButton() {
@@ -101,6 +102,8 @@ export function App() {
       <Routes>
         <Route element={<WithTabs />}>
           <Route path="/" element={<Community />} />
+          <Route path="/journey" element={<Journey />} />
+          <Route path="/journey/:memberId" element={<StaffOnly><Journey /></StaffOnly>} />
           <Route path="/learn" element={<Learn />} />
           <Route path="/learn/:courseId" element={<Course />} />
           <Route path="/feedback" element={<Feedback />} />

@@ -217,3 +217,75 @@ img, video { max-width: 100%; display: block; }
 .stat { background: #fff; color: var(--ink); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
 .stat__label { font-size: 12px; color: var(--muted); }
 .stat__value { font-size: 26px; font-weight: 800; color: var(--sage-dark); }
+
+/* ---- Journey ---- */
+.journey-hero__step { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+.journey-story .body { font-size: 15px; }
+.win-icon {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--sage-tint); color: var(--sage);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+}
+
+/* The road: a line of steps that keeps going past the last one. */
+.road { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.road__step { position: relative; }
+/* connector to the next step */
+.road__step::before {
+  content: ""; position: absolute; left: 15px; top: 34px; bottom: -4px; width: 2px;
+  background: var(--line-2); border-radius: 1px;
+}
+.road__step--done::before { background: var(--sage); }
+.road__hit {
+  width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: start; gap: 14px;
+  padding: 0 0 22px; border: none; background: none; text-align: left; color: inherit;
+}
+button.road__hit > svg { margin-top: 8px; color: var(--muted); }
+.road__dot {
+  width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--line-2); background: var(--bg);
+  display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; color: #fff;
+}
+.road__step--done .road__dot { background: var(--sage); border-color: var(--sage); }
+.road__step--current .road__dot, .road__step--next .road__dot { border-color: var(--sage); background: var(--surface); }
+.road__step--current .road__dot { box-shadow: 0 0 0 6px var(--sage-tint); animation: road-pulse 2.4s ease-in-out infinite; }
+.road__step--current .road__dot::after, .road__step--next .road__dot::after {
+  content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--sage);
+}
+.road__step--next .road__dot::after { background: var(--sage-bar); }
+.road__step--add .road__dot { border-style: dashed; color: var(--sage); background: transparent; }
+.road__step--add::before { background: repeating-linear-gradient(var(--line-2) 0 4px, transparent 4px 8px); }
+.road__body { display: flex; flex-direction: column; gap: 4px; padding-top: 5px; min-width: 0; }
+.road__title { font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.road__step--upcoming .road__title { color: var(--muted); font-weight: 600; }
+.road__step--add .road__title { color: var(--sage); }
+.road__personal {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; vertical-align: 2px;
+  font-size: 11px; font-weight: 700; color: var(--sage-dark); background: var(--sage-tint);
+}
+.road__here {
+  align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #fff; background: var(--sage); padding: 3px 8px; border-radius: 999px;
+}
+.road__here--next { background: var(--sage-tint); color: var(--sage-dark); }
+.road__desc { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.road__step--current .road__desc, .road__step--next .road__desc { color: var(--ink-2); }
+.road__meta { font-size: 12px; color: var(--muted); }
+.road__note {
+  font-size: 13px; line-height: 1.45; color: var(--sage-dark); background: var(--sage-tint);
+  padding: 8px 10px; border-radius: 10px; white-space: pre-wrap;
+}
+/* the never-ending part */
+.road__beyond { position: relative; display: flex; flex-direction: column; gap: 14px; padding-left: 9px; }
+.road__beyond::before {
+  content: ""; position: absolute; left: 15px; top: -22px; height: 128px; width: 2px;
+  background: repeating-linear-gradient(var(--sage-bar) 0 5px, transparent 5px 10px);
+  -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent);
+}
+.road__ghost {
+  position: relative; z-index: 1; width: 16px; height: 16px; margin-left: -1px; border-radius: 50%;
+  border: 2px dashed var(--sage-bar); background: var(--bg);
+}
+.road__ghost:nth-child(2) { opacity: 0.55; transform: scale(0.85); }
+.road__ghost:nth-child(3) { opacity: 0.25; transform: scale(0.7); }
+.road__beyond-text { margin: 4px 0 0 -9px; font-size: 13px; line-height: 1.5; color: var(--muted); max-width: 36ch; }
+@keyframes road-pulse { 50% { box-shadow: 0 0 0 10px var(--sage-tint); } }
+@media (prefers-reduced-motion: reduce) { .road__step--current .road__dot { animation: none; } }
