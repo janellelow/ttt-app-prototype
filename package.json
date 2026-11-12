@@ -6,7 +6,9 @@
   "description": "Telegram mini app where instrument and live-sound trainers and trainees learn together.",
   "scripts": {
     "dev": "vite",
+    "dev:demo": "vite --mode demo",
     "build": "tsc --noEmit && vite build",
+    "build:demo": "vite build --mode demo --outDir dist-demo",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

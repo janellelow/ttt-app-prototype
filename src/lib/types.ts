@@ -1,4 +1,14 @@
-export type Role = "trainee" | "trainer" | "admin";
+export type Role = "trainee" | "trainer" | "admin" | "head";
+
+/** How each role is named on screen. */
+export const ROLE_LABEL: Record<Role, string> = {
+  trainee: "Trainee",
+  trainer: "Trainer",
+  admin: "Admin",
+  head: "Head of Dept",
+};
+
+export const firstName = (name: string) => name.split(/\s+/)[0] ?? name;
 
 export interface Profile {
   id: string;
@@ -10,6 +20,10 @@ export interface Profile {
   age_group_id: string | null;
   trainer_id: string | null;
   created_at: string;
+  /** Written by the person themselves. */
+  vision: string | null;
+  growing_in: string | null;
+  profile_updated_at: string | null;
 }
 
 /** Public-safe slice of a profile (member_directory view). */
@@ -151,4 +165,42 @@ export interface WrappedData {
   lessons_completed: number;
   feedback_received: number;
   percentile_in_group: number | null;
+}
+
+/** profile_id null = a step on the general roadmap everyone walks. */
+export interface RoadmapStep {
+  id: string;
+  profile_id: string | null;
+  title: string;
+  description: string | null;
+  position: number;
+}
+
+export type StepStatus = "in_progress" | "done";
+
+export interface RoadmapProgress {
+  profile_id: string;
+  step_id: string;
+  status: StepStatus;
+  note: string | null;
+  done_on: string | null;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export interface Accomplishment {
+  id: string;
+  profile_id: string;
+  title: string;
+  note: string | null;
+  achieved_on: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ConsoleAccess {
+  profile_id: string;
+  email: string;
+  granted_by: string | null;
+  granted_at: string;
 }

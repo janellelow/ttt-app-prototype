@@ -11,6 +11,8 @@ interface AuthValue {
   profile: Profile | null;
   isStaff: boolean;
   isAdmin: boolean;
+  /** Head of Department: roles, console access, general roadmap, change log. */
+  isHead: boolean;
   refreshProfile: () => Promise<void>;
   retry: () => void;
 }
@@ -79,8 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     error,
     profile,
-    isStaff: profile?.role === "trainer" || profile?.role === "admin",
-    isAdmin: profile?.role === "admin",
+    isStaff: profile?.role === "trainer" || profile?.role === "admin" || profile?.role === "head",
+    isAdmin: profile?.role === "admin" || profile?.role === "head",
+    isHead: profile?.role === "head",
     refreshProfile: loadProfile,
     retry: () => setAttempt((n) => n + 1),
   };

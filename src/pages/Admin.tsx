@@ -4,24 +4,17 @@ import { Icon } from "../components/Icon";
 import { Avatar, Empty, ErrorNote, PrivateBadge, RoleBadge, Sheet, Spinner } from "../components/ui";
 import { useAuth, useMe } from "../lib/auth";
 import { errorText, timeAgo } from "../lib/format";
+import { describeAudit, type AuditRow } from "../lib/audit";
 import { fetchAgeGroups } from "../lib/members";
 import { supabase, unwrap } from "../lib/supabase";
 import { haptic } from "../lib/telegram";
-import type { AgeGroup, Member, Profile, Role, Tag } from "../lib/types";
+import { ROLE_LABEL, type AgeGroup, type Member, type Profile, type Role, type Tag } from "../lib/types";
 
 type Tab = "unassigned" | "mine" | "all" | "log";
 
-interface AuditRow {
-  id: number;
-  actor_id: string | null;
-  action: string;
-  target_id: string | null;
-  created_at: string;
-}
-
 export function Admin() {
   const me = useMe();
-  const { isAdmin, refreshProfile } = useAuth();
+  const { isAdmin, isHead, refreshProfile } = useAuth();
   const [tab, setTab] = useState<Tab>("unassigned");
   const [people, setPeople] = useState<Profile[] | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -39,7 +32,7 @@ export function Admin() {
         supabase.from("tags").select("*").order("kind").order("label"),
         ps.length ? supabase.from("profile_tags").select("profile_id, tag_id").in("profile_id", ps.map((p) => p.id)) : Promise.resolve({ data: [] }),
         fetchAgeGroups(),
-        supabase.from("member_directory").select("*").in("role", ["trainer", "admin"]).order("display_name"),
+        supabase.from("member_directory").select("*").in("role", ["trainer", "admin", "head"]).order("display_name"),
       ]);
       const map: Record<string, string[]> = {};
       ((pt.data ?? []) as { profile_id: string; tag_id: string }[]).forEach((r) => {
@@ -76,9 +69,9 @@ export function Admin() {
     <main className="screen">
       <div className="row row--between">
         <h1 className="h1">Members</h1>
-        <span className="badge badge--dark">{isAdmin ? "Admin" : "Trainer"}</span>
+        <span className="badge badge--dark">{ROLE_LABEL[me.role]}</span>
       </div>
-      <PrivateBadge>Seen only by admins and assigned trainers. Every change is logged.</PrivateBadge>
+      <PrivateBadge>Seen only by leaders. Every change is logged.</PrivateBadge>
 
       <div className="chips" role="tablist">
         <button role="tab" aria-selected={tab === "unassigned"} className={`chip${tab === "unassigned" ? " chip--active" : ""}`} onClick={() => setTab("unassigned")}>
@@ -92,9 +85,11 @@ export function Admin() {
             <button role="tab" aria-selected={tab === "all"} className={`chip${tab === "all" ? " chip--active" : ""}`} onClick={() => setTab("all")}>
               Everyone
             </button>
-            <button role="tab" aria-selected={tab === "log"} className={`chip${tab === "log" ? " chip--active" : ""}`} onClick={() => setTab("log")}>
-              Change log
-            </button>
+            {isHead ? (
+              <button role="tab" aria-selected={tab === "log"} className={`chip${tab === "log" ? " chip--active" : ""}`} onClick={() => setTab("log")}>
+                Change log
+              </button>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -164,7 +159,7 @@ function AssignSheet({
   onSaved: () => void;
 }) {
   const me = useMe();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isHead } = useAuth();
   const [role, setRole] = useState<Role>(person.role);
   const [groupId, setGroupId] = useState<string>(person.age_group_id ?? "");
   // Trainers can only make themselves the trainer.
@@ -198,7 +193,7 @@ function AssignSheet({
         p_age_group: groupId || null,
         p_trainer: trainerId || null,
         p_tag_ids: selected,
-        p_role: isAdmin ? role : null,
+        p_role: isHead ? role : null,
       });
       if (error) throw new Error(error.message);
       haptic("success");
@@ -212,13 +207,14 @@ function AssignSheet({
 
   return (
     <Sheet title={`Assign ${person.display_name}`} onClose={onClose}>
-      {isAdmin ? (
+      {isHead ? (
         <div className="field">
           <label className="label" htmlFor="as-role">Role</label>
           <select id="as-role" className="select" value={role} onChange={(e) => setRole(e.target.value as Role)}>
             <option value="trainee">Trainee</option>
             <option value="trainer">Trainer</option>
             <option value="admin">Admin</option>
+            <option value="head">Head of Department</option>
           </select>
         </div>
       ) : null}
@@ -261,7 +257,7 @@ function AssignSheet({
           <select id="as-trainer" className="select" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
             <option value="">No trainer</option>
             {staff.filter((s) => s.id !== person.id).map((s) => (
-              <option key={s.id} value={s.id}>{s.display_name}{s.role === "admin" ? " (admin)" : ""}</option>
+              <option key={s.id} value={s.id}>{s.display_name}{s.role !== "trainer" ? ` (${ROLE_LABEL[s.role]})` : ""}</option>
             ))}
           </select>
         ) : (
@@ -274,6 +270,9 @@ function AssignSheet({
         {busy ? "Saving…" : "Save assignment"}
       </button>
       {person.trainer_id === me.id || isAdmin ? (
+        <Link to={`/journey/${person.id}`} className="btn btn--dark btn--block">View their journey</Link>
+      ) : null}
+      {person.trainer_id === me.id || isAdmin ? (
         <Link to={`/wrapped?member=${person.id}`} className="btn btn--ghost btn--block">View their Wrapped</Link>
       ) : null}
     </Sheet>
@@ -285,7 +284,7 @@ function AuditLog({ people }: { people: Profile[] }) {
   useEffect(() => {
     supabase
       .from("audit_log")
-      .select("id, actor_id, action, target_id, created_at")
+      .select("id, actor_id, action, target_id, details, created_at")
       .order("created_at", { ascending: false })
       .limit(50)
       .then(({ data }) => setRows((data as AuditRow[]) ?? []));
@@ -298,7 +297,7 @@ function AuditLog({ people }: { people: Profile[] }) {
       {rows.map((r) => (
         <div key={r.id} className="list-row">
           <span className="stack grow" style={{ gap: 2 }}>
-            <span className="small"><strong>{name(r.actor_id)}</strong> updated <strong>{name(r.target_id)}</strong></span>
+            <span className="small">{describeAudit(r, name)}</span>
             <span className="tiny muted">{timeAgo(r.created_at)}</span>
           </span>
         </div>
