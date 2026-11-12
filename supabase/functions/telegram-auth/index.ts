@@ -100,9 +100,12 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: { telegram_id: tgUser.id },
     });
-    if (created.error) return json({ error: "Could not create account" }, 500);
+    // Sign in either way: if creating failed, a parallel first sign-in (a
+    // double tap, or a retry) has usually just created the same account.
     ({ data, error } = await anon.auth.signInWithPassword({ email, password }));
-    if (error || !data.session) return json({ error: "Could not sign in" }, 500);
+    if (error || !data.session) {
+      return json({ error: created.error ? "Could not create account" : "Could not sign in" }, 500);
+    }
   }
 
   const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ").slice(0, 80) ||
