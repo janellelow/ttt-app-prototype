@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Avatar, ErrorNote, RoleBadge, Spinner } from "../../components/ui";
 import { errorText, timeAgo } from "../../lib/format";
+import { useAutoRefresh } from "../../lib/refresh";
 import { anonKeyValue, functionsUrl, supabase, unwrap } from "../../lib/supabase";
 import type { ConsoleAccess } from "../../lib/types";
 import { useTeam } from "../ConsoleApp";
@@ -43,6 +44,7 @@ export function Access() {
   useEffect(() => {
     load();
   }, [load]);
+  useAutoRefresh(load);
 
   const person = (id: string) => team.people.find((p) => p.id === id);
   const withoutAccess = team.people.filter((p) => LEADER_ROLES.includes(p.role) && !rows?.some((r) => r.profile_id === p.id));

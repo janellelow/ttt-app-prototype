@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorNote, Spinner } from "../../components/ui";
 import { describeAudit, type AuditRow } from "../../lib/audit";
 import { errorText } from "../../lib/format";
+import { useAutoRefresh } from "../../lib/refresh";
 import { supabase, unwrap } from "../../lib/supabase";
 import { useTeam } from "../ConsoleApp";
 import { namesOf } from "../data";
@@ -13,20 +14,23 @@ export function ChangeLog() {
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase
-      .from("audit_log")
-      .select("id, actor_id, action, target_id, details, created_at")
-      .order("created_at", { ascending: false })
-      .limit(200)
-      .then((res) => {
-        try {
-          setRows(unwrap(res) as AuditRow[]);
-        } catch (e) {
-          setError(errorText(e));
-        }
-      });
+  const load = useCallback(async () => {
+    try {
+      const res = await supabase
+        .from("audit_log")
+        .select("id, actor_id, action, target_id, details, created_at")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      setRows(unwrap(res) as AuditRow[]);
+      setError(null);
+    } catch (e) {
+      setError(errorText(e));
+    }
   }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  useAutoRefresh(load);
 
   const name = (id: string | null) => (id && names[id]?.display_name) || "Someone";
 

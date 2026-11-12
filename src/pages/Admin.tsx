@@ -6,6 +6,7 @@ import { useAuth, useMe } from "../lib/auth";
 import { errorText, timeAgo } from "../lib/format";
 import { describeAudit, type AuditRow } from "../lib/audit";
 import { fetchAgeGroups } from "../lib/members";
+import { useAutoRefresh } from "../lib/refresh";
 import { supabase, unwrap } from "../lib/supabase";
 import { haptic } from "../lib/telegram";
 import { ROLE_LABEL, type AgeGroup, type Member, type Profile, type Role, type Tag } from "../lib/types";
@@ -51,6 +52,7 @@ export function Admin() {
   useEffect(() => {
     load();
   }, [load]);
+  useAutoRefresh(load);
 
   const shown = useMemo(() => {
     if (!people) return [];

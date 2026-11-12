@@ -23,6 +23,8 @@ In the web console (leaders):
 - **Roadmap**: the general roadmap everyone walks (Heads edit it; leaders add personal steps per person).
 - **Console access** and **Change log**: for Heads of Department only.
 
+Everything a Head of Department or trainer changes in the web console (roadmap steps, sign-offs, notes, accomplishments, personal steps, role, age group, trainer, serving areas) shows up in the mini app: as soon as someone opens or switches back to it, and within 30 seconds if it's already open. The same goes the other way.
+
 | Role | In short |
 | --- | --- |
 | Trainee | Their own journey, community, lessons, feedback |

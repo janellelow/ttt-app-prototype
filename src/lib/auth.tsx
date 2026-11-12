@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { anonKeyValue, functionsUrl, supabase, supabaseConfigured } from "./supabase";
+import { useAutoRefresh } from "./refresh";
 import { insideTelegram, prepareTelegram, tg } from "./telegram";
 import type { Profile } from "./types";
 
@@ -31,7 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) throw new Error("Not signed in");
     const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).single();
     if (error) throw new Error(error.message);
-    setProfile(data as Profile);
+    // Keep the same object when nothing changed, so screens don't reload for nothing.
+    setProfile((prev) => (prev && JSON.stringify(prev) === JSON.stringify(data) ? prev : (data as Profile)));
   }, []);
 
   useEffect(() => {
@@ -76,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [attempt, loadProfile]);
+
+  // A Head of Department may change your role, group or trainer from the web
+  // console while the app is open; pick that up without reopening.
+  useAutoRefresh(loadProfile, status === "ready");
 
   const value: AuthValue = {
     status,

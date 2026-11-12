@@ -15,9 +15,10 @@ import {
   type Journey as JourneyT,
 } from "../lib/journey";
 import { fetchMembers } from "../lib/members";
+import { useAutoRefresh } from "../lib/refresh";
 import { supabase, unwrap } from "../lib/supabase";
 import { confirmAction } from "../lib/telegram";
-import { firstName, type Member, type Profile, type RoadmapStep } from "../lib/types";
+import { firstName, type Member, type Profile, type RoadmapStep, type Tag } from "../lib/types";
 
 /** /journey is your own road; /journey/:memberId is a trainee's road, for their leaders. */
 export function Journey() {
@@ -30,6 +31,7 @@ export function Journey() {
   const [other, setOther] = useState<Profile | null>(null);
   const [journey, setJourney] = useState<JourneyT | null>(null);
   const [names, setNames] = useState<Record<string, Member>>({});
+  const [serving, setServing] = useState<Tag[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<
     { kind: "story" } | { kind: "step"; step: RoadmapStep } | { kind: "add-step" } | { kind: "win" } | null
@@ -40,7 +42,16 @@ export function Journey() {
   const load = useCallback(async () => {
     try {
       const p = self ? me : (unwrap(await supabase.from("profiles").select("*").eq("id", targetId).single()) as Profile);
-      const j = await fetchJourney(targetId);
+      const [j, pt] = await Promise.all([
+        fetchJourney(targetId),
+        supabase.from("profile_tags").select("tag_id").eq("profile_id", targetId),
+      ]);
+      // Instrument and level tags a leader gave this person. (General tags are
+      // leader-only notes; the database doesn't return them to trainees.)
+      const tagIds = ((pt.data ?? []) as { tag_id: string }[]).map((r) => r.tag_id);
+      const tags = tagIds.length
+        ? ((unwrap(await supabase.from("tags").select("*").in("id", tagIds)) as Tag[]) ?? [])
+        : [];
       const ids = [
         ...Object.values(j.progress).map((x) => x.updated_by),
         ...j.accomplishments.map((a) => a.created_by),
@@ -48,7 +59,13 @@ export function Journey() {
       ].filter((x): x is string => Boolean(x));
       setNames(await fetchMembers(ids));
       if (!self) setOther(p);
+      setServing(
+        tags
+          .filter((t) => t.kind !== "general")
+          .sort((a, b) => (a.kind === b.kind ? a.label.localeCompare(b.label) : a.kind === "instrument" ? -1 : 1)),
+      );
       setJourney(j);
+      setError(null);
     } catch (e) {
       setError(errorText(e));
     }
@@ -57,6 +74,8 @@ export function Journey() {
   useEffect(() => {
     load();
   }, [load]);
+  // Leaders may sign off steps or edit the roadmap from the web console while this is open.
+  useAutoRefresh(load);
 
   // Mirrors can_manage_member() in the database, which has the final say.
   const canManage = Boolean(person) && (isHead || (!self && (isAdmin || person!.trainer_id === me.id)));
@@ -84,6 +103,14 @@ export function Journey() {
           </span>
         </div>
       </header>
+
+      {serving.length ? (
+        <div className="row row--wrap" style={{ gap: 6 }} aria-label="Serving areas">
+          {serving.map((t) => (
+            <span key={t.id} className="badge">{t.label}</span>
+          ))}
+        </div>
+      ) : null}
 
       <section className="hero" aria-label="Where you are now">
         <span className="hero__label">{self ? "Where you are on the road" : `Where ${first} is on the road`}</span>

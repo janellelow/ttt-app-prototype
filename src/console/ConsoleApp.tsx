@@ -3,6 +3,7 @@ import { HashRouter, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { Icon, type IconName } from "../components/Icon";
 import { Avatar, ErrorNote, Spinner } from "../components/ui";
 import { errorText } from "../lib/format";
+import { useAutoRefresh } from "../lib/refresh";
 import { ROLE_LABEL } from "../lib/types";
 import { useConsoleAuth, useLeader } from "./auth";
 import { fetchTeam, type Team } from "./data";
@@ -120,6 +121,8 @@ function Shell() {
   useEffect(() => {
     reload();
   }, [reload]);
+  // Pick up changes made in the mini app or by another leader.
+  useAutoRefresh(reload);
 
   return (
     <div className="console">

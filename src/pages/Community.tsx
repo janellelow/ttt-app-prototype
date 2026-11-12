@@ -39,6 +39,11 @@ export function Community() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // If a leader moves you to another age group, show that group's feed.
+  useEffect(() => {
+    if (!isStaff) setGroupId(me.age_group_id);
+  }, [isStaff, me.age_group_id]);
+
   const groupLabel = groups.find((g) => g.id === groupId)?.label;
 
   return (

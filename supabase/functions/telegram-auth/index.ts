@@ -113,16 +113,21 @@ Deno.serve(async (req) => {
 
   // Keep Telegram name/photo fresh. Role, age group, tags and trainer are
   // never touched here; only assign_member() changes those.
-  const { error: profileError } = await admin.from("profiles").upsert(
-    {
-      id: data.session!.user.id,
-      telegram_id: tgUser.id,
-      display_name: displayName,
-      username: tgUser.username ?? null,
-      photo_url: tgUser.photo_url ?? null,
-    },
-    { onConflict: "id" },
-  );
+  const saveProfile = () =>
+    admin.from("profiles").upsert(
+      {
+        id: data.session!.user.id,
+        telegram_id: tgUser.id,
+        display_name: displayName,
+        username: tgUser.username ?? null,
+        photo_url: tgUser.photo_url ?? null,
+      },
+      { onConflict: "id" },
+    );
+  let { error: profileError } = await saveProfile();
+  // Two first sign-ins at once can both try to create the row; the loser hits
+  // the unique Telegram id. Once the winner's row exists, this just updates it.
+  if (profileError) ({ error: profileError } = await saveProfile());
   if (profileError) return json({ error: "Could not save profile" }, 500);
 
   return json({

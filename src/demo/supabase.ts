@@ -39,6 +39,7 @@ function store(key: string, value: string | null) {
   }
 }
 
+const DB_KEY = "ttt-demo-data-v1";
 const personaKey = isConsole ? "ttt-demo-console-as" : "ttt-demo-as";
 const allowed = PERSONAS.filter((p) => !isConsole || p.app === "both").map((p) => p.id as string);
 let ME: string = stored(personaKey) ?? (isConsole ? "u-jamie" : "u-sofia");
@@ -59,8 +60,14 @@ function demoBar() {
   const other = isConsole
     ? `<a href="../index.html">Open the mini app</a>`
     : `<a href="console/index.html">Open the leaders' web console</a>`;
-  bar.innerHTML = `<span><strong>Demo</strong> · sample data, nothing is saved</span>
-    <label>Viewing as <select aria-label="Viewing as">${options}</select></label>${other}`;
+  bar.innerHTML = `<span><strong>Demo</strong> · sample data, saved only in this browser</span>
+    <label>Viewing as <select aria-label="Viewing as">${options}</select></label>${other}
+    <a href="#" data-reset>Reset sample data</a>`;
+  bar.querySelector("[data-reset]")!.addEventListener("click", (e) => {
+    e.preventDefault();
+    store(DB_KEY, null);
+    location.reload();
+  });
   bar.querySelector("select")!.addEventListener("change", (e) => {
     store(personaKey, (e.target as HTMLSelectElement).value);
     location.reload();
@@ -155,7 +162,7 @@ const db: Record<string, Row[]> = {
   tags: [
     ["t1", "Drums", "instrument"], ["t2", "Guitar", "instrument"], ["t3", "Bass", "instrument"], ["t4", "Keys", "instrument"],
     ["t5", "Vocals", "instrument"], ["t6", "Live sound", "instrument"], ["t7", "Beginner", "level"], ["t8", "Intermediate", "level"],
-    ["t9", "Advanced", "level"], ["t10", "Worship leading", "general"],
+    ["t9", "Advanced", "level"], ["t10", "Worship leading", "instrument"],
   ].map(([id, label, kind]) => ({ id, label, kind })),
   profile_tags: [
     ["u-sofia", "t1"], ["u-sofia", "t8"], ["u-aiden", "t2"], ["u-aiden", "t7"], ["u-grace", "t5"], ["u-grace", "t9"],
@@ -248,6 +255,27 @@ const db: Record<string, Row[]> = {
   quiz_attempts: [],
 };
 
+// The mini app and the web console share this data through the browser's
+// storage, the way the real apps share one database: a change made as a Head
+// in the console shows up in the mini app (straight away when you switch to
+// it, or within 30 seconds if it's already open).
+function loadSaved() {
+  const raw = stored(DB_KEY);
+  if (!raw) return;
+  try {
+    Object.assign(db, JSON.parse(raw));
+  } catch {
+    /* unreadable saved data: keep the fresh sample */
+  }
+}
+const saveDb = () => store(DB_KEY, JSON.stringify(db));
+loadSaved();
+window.addEventListener("storage", (e) => {
+  if (e.key !== DB_KEY) return;
+  if (e.newValue === null) location.reload();
+  else loadSaved();
+});
+
 // ---------------------------------------------------------------------------
 // The database rules, in miniature (see supabase/migrations)
 // ---------------------------------------------------------------------------
@@ -268,7 +296,8 @@ const submissionOwner = (id: string) => db.submissions!.find((s) => s.id === id)
 
 const readable: Record<string, (r: Row) => boolean> = {
   profiles: (r) => r.id === ME || isAdmin() || r.trainer_id === ME || (isStaff() && unplacedTrainee(r.id)),
-  tags: () => isStaff(),
+  // Leaders read every tag; people read their own instrument and level tags.
+  tags: (r) => isStaff() || (r.kind !== "general" && db.profile_tags!.some((pt) => pt.tag_id === r.id && pt.profile_id === ME)),
   profile_tags: (r) => canView(r.profile_id) || (isStaff() && unplacedTrainee(r.profile_id)),
   posts: (r) => isStaff() || r.age_group_id === myGroup(),
   roadmap_steps: (r) => r.profile_id === null || canView(r.profile_id),
@@ -377,6 +406,7 @@ class Query implements PromiseLike<{ data: any; error: any }> {
       out = out.slice(0, this.max).map((r) => ({ ...r }));
     }
 
+    if (this.op !== "select") saveDb();
     if (this.one) {
       if (out[0]) return { data: out[0], error: null };
       return this.one === "maybe" ? { data: null, error: null } : { data: null, error: { message: "Not found" } };
@@ -458,6 +488,7 @@ const rpcs: Record<string, (a: any) => { data: any; error: any }> = {
       (a.p_tag_ids ?? []).map((tag_id: string) => ({ profile_id: a.p_member, tag_id })),
     );
     log("assign_member", a.p_member, {});
+    saveDb();
     return { data: null, error: null };
   },
 };
@@ -468,6 +499,7 @@ function consoleAccess(body: Row): { status: number; body: Row } {
   if (body.action === "revoke") {
     db.console_access = db.console_access!.filter((r) => r.profile_id !== body.profile_id);
     if (existing) log("console_access_revoked", body.profile_id, { email: existing.email });
+    saveDb();
     return { status: 200, body: { ok: true } };
   }
   const email = String(body.email ?? "").trim().toLowerCase();
@@ -478,6 +510,7 @@ function consoleAccess(body: Row): { status: number; body: Row } {
   db.console_access = db.console_access!.filter((r) => r.profile_id !== body.profile_id);
   db.console_access.push({ profile_id: body.profile_id, email, login_user_id: crypto.randomUUID(), granted_by: ME, granted_at: new Date().toISOString() });
   log("console_access_granted", body.profile_id, { email });
+  saveDb();
   return { status: 200, body: { ok: true } };
 }
 

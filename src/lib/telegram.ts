@@ -9,6 +9,9 @@ interface TelegramWebApp {
   setBackgroundColor?(color: string): void;
   openLink(url: string): void;
   openTelegramLink(url: string): void;
+  /** Bot API 8.0+: e.g. "activated" when the mini app comes back from minimised. */
+  onEvent?(event: string, cb: () => void): void;
+  offEvent?(event: string, cb: () => void): void;
   BackButton: {
     show(): void;
     hide(): void;

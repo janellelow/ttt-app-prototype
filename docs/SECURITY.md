@@ -7,6 +7,8 @@ There are two apps, and **both run under the same rules**:
 - the **Telegram mini app** for everyone, and
 - the **web console** for trainers, admins and Heads of Department, who sign in with Google.
 
+Whatever a leader changes in one app is visible in the other, because both read the same data: straight away when someone opens or switches back to the app, and within 30 seconds if it's already open.
+
 The web console is not a back door. After the Google sign-in, the `console-auth` function swaps it for the leader's own app account, so a trainer sees exactly what they would see in the mini app.
 
 ## Roles
@@ -29,6 +31,7 @@ Only Heads change roles. Nobody can change their own role, age group, tags or tr
 | Dreams & vision, "I want to grow in" | The person (the only one who can edit it), their assigned trainer, admins and Heads |
 | Accomplishments, roadmap progress, personal roadmap steps | The person, their assigned trainer, admins and Heads. Only the trainer, admins and Heads can add or change them. |
 | Telegram id and username, age group, tags, trainer | The person, their assigned trainer, admins (trainers also see people not yet placed, so they can place them) |
+| Tag names | Leaders see every tag. Each person sees their own instrument and level tags (shown as serving areas on their Journey). General tags are private notes for leaders. |
 | Correct quiz answers | Trainers and admins only. Trainees' answers are marked on the server. |
 | Change log (placements, roles, roadmap sign-offs, accomplishments, console access) | Heads of Department |
 | Which Google account each leader uses for the web console | Heads of Department (and each leader sees their own) |
