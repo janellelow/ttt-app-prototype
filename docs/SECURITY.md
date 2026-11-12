@@ -18,7 +18,11 @@ The web console is not a back door. After the Google sign-in, the `console-auth`
 | **Trainee** | Use the community feed of their own age group, take lessons and quizzes, log practice, send takes, read feedback on their own takes. |
 | **Trainer** | Everything a trainee can, plus: create lessons and quizzes, see and moderate every age group's feed, place unassigned people, tag them and become their trainer, read and reply to their own trainees' takes, practice and quiz results. |
 | **Admin** | Everything a trainer can, for everyone: place and reassign anyone (except a Head), record accomplishments and sign off roadmap steps for anyone. |
-| **Head of Department** | Everything an admin can, plus: change roles, edit the general roadmap, decide who can use the web console, and read the change log. |
+| **Head of Department** | Everything an admin can, plus: change roles, create departments and appoint their Heads, edit the general roadmap and team setup, decide who can use the web console, and read the change log. |
+
+**Department Heads.** A trainer (or higher) can also be made Head of a department (Band, Vocals, Production…) by a Head of Department. A department Head looks after the trainees and trainers in their department the way a trainer looks after their own trainees: they see their journeys and private data, sign off steps, record accomplishments and place them. They never reach admins or Heads of Department, can't change roles, and can't add people to their own department: only Heads of Department and admins decide who is in a department, because that decides who can see someone's data. Demoting a department Head to trainee ends their reach immediately.
+
+**Names are customisable, powers are not.** Heads can rename the four access levels in the web console (for example Trainee → Member, Trainer → Mentor). The names change everywhere; what each level can do does not.
 
 Only Heads change roles. Nobody can change their own role, age group, tags or trainer, and nobody signs off their own roadmap steps or records their own accomplishments (except a Head). There is always at least one Head.
 
@@ -26,10 +30,11 @@ Only Heads change roles. Nobody can change their own role, age group, tags or tr
 
 | Data | Visible to |
 | --- | --- |
-| Recordings sent for feedback, voice notes, feedback threads | The trainee, their assigned trainer, admins |
-| Practice log, quiz attempts, lesson progress, Wrapped | The person, their assigned trainer, admins |
-| Dreams & vision, "I want to grow in" | The person (the only one who can edit it), their assigned trainer, admins and Heads |
-| Accomplishments, roadmap progress, personal roadmap steps | The person, their assigned trainer, admins and Heads. Only the trainer, admins and Heads can add or change them. |
+| Recordings sent for feedback, voice notes, feedback threads | The trainee, their assigned trainer, their department Head, admins |
+| Practice log, quiz attempts, lesson progress, Wrapped | The person, their assigned trainer, their department Head, admins |
+| Dreams & vision, "I want to grow in" | The person (the only one who can edit it), their assigned trainer, their department Head, admins and Heads |
+| Accomplishments, roadmap progress, personal roadmap steps | The person, their assigned trainer, their department Head, admins and Heads. Only those leaders can add or change them. |
+| Who is in which department | The person (their own departments and those departments' Heads), the department's Heads, admins and Heads of Department |
 | Telegram id and username, age group, tags, trainer | The person, their assigned trainer, admins (trainers also see people not yet placed, so they can place them) |
 | Tag names | Leaders see every tag. Each person sees their own instrument and level tags (shown as serving areas on their Journey). General tags are private notes for leaders. |
 | Correct quiz answers | Trainers and admins only. Trainees' answers are marked on the server. |
@@ -44,6 +49,7 @@ Only Heads change roles. Nobody can change their own role, age group, tags or tr
 | Display name, photo and role | People in your age group; trainers and admins are visible to everyone |
 | Published courses | Everyone in the course's age group (or everyone, if the course is for all groups) |
 | The general roadmap | Everyone on the team (only Heads can change it) |
+| Department names, access level names, age groups | Everyone on the team (Heads change departments and access level names; admins and Heads change age groups) |
 
 ## How it's protected
 
@@ -53,7 +59,8 @@ Only Heads change roles. Nobody can change their own role, age group, tags or tr
 - **Files are private.** All three storage buckets are private. The app shows files through signed links that expire after an hour. Who can open a file depends on which folder it's in (trainee id, age group or course).
 - **No third parties.** The apps send data only to your Supabase project, Telegram, and Google (only for web console sign-in). There are no analytics, ad SDKs or trackers. Fonts load from Google Fonts. Self-host them if you want zero third-party requests.
 - **Wrapped comparisons are anonymous.** "More than X% of your group" only appears when the group has at least 5 trainees, and only the percentage is returned.
-- **Audit trail.** Every role, group, tag or trainer change, roadmap sign-off, accomplishment and console access change is recorded with who made it.
+- **Audit trail.** Every role, group, tag or trainer change, roadmap sign-off, accomplishment, department and membership change, team setup change and console access change is recorded with who made it.
+- **Age groups keep their posts.** An age group that still has people or posts can't be deleted, so nobody's Community posts are lost by accident.
 
 ## Your responsibilities
 

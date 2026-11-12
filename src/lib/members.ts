@@ -22,11 +22,8 @@ export function memberName(members: Record<string, Member>, id: string): string 
   return members[id]?.display_name ?? "Member";
 }
 
-let groupsPromise: Promise<AgeGroup[]> | null = null;
-
-export function fetchAgeGroups(): Promise<AgeGroup[]> {
-  groupsPromise ??= Promise.resolve(
-    supabase.from("age_groups").select("*").order("sort_order"),
-  ).then(({ data }) => (data as AgeGroup[]) ?? []);
-  return groupsPromise;
+/** Age groups, fresh each time: Heads and admins can edit them in the web console. */
+export async function fetchAgeGroups(): Promise<AgeGroup[]> {
+  const { data } = await supabase.from("age_groups").select("*").order("sort_order");
+  return (data as AgeGroup[]) ?? [];
 }

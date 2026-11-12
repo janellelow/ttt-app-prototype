@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { anonKeyValue, functionsUrl, supabase, supabaseConfigured } from "./supabase";
+import { loadRoleLabels } from "./labels";
 import { useAutoRefresh } from "./refresh";
 import { insideTelegram, prepareTelegram, tg } from "./telegram";
 import type { Profile } from "./types";
@@ -32,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) throw new Error("Not signed in");
     const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).single();
     if (error) throw new Error(error.message);
+    // The team's own names for access levels (Heads rename them in the web console).
+    await loadRoleLabels();
     // Keep the same object when nothing changed, so screens don't reload for nothing.
     setProfile((prev) => (prev && JSON.stringify(prev) === JSON.stringify(data) ? prev : (data as Profile)));
   }, []);

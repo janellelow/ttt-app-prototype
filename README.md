@@ -20,7 +20,9 @@ In the web console (leaders):
 
 - **Overview**: where trainees are on the road, newcomers waiting to be placed, recent milestones.
 - **People**: everyone you look after in one table, and each person's story, placement, roadmap and accomplishments.
+- **Departments**: Band, Vocals, Production… with their own Heads, who look after the people in their department.
 - **Roadmap**: the general roadmap everyone walks (Heads edit it; leaders add personal steps per person).
+- **Team setup**: name things your way: serving roles (Worship Leader, Drummer, Sound Engineer…), levels, private notes for leaders, the names of the access levels, and age groups.
 - **Console access** and **Change log**: for Heads of Department only.
 
 Everything a Head of Department or trainer changes in the web console (roadmap steps, sign-offs, notes, accomplishments, personal steps, role, age group, trainer, serving areas) shows up in the mini app: as soon as someone opens or switches back to it, and within 30 seconds if it's already open. The same goes the other way.
@@ -30,7 +32,9 @@ Everything a Head of Department or trainer changes in the web console (roadmap s
 | Trainee | Their own journey, community, lessons, feedback |
 | Trainer | Plus their own trainees' journeys, lessons and feedback |
 | Admin | Plus everyone's journeys and placements |
-| Head of Department | Plus roles, the general roadmap, web console access and the change log |
+| Head of Department | Plus roles, departments and their Heads, the general roadmap, team setup, web console access and the change log |
+
+A trainer or admin can also be a **department Head**: they look after the trainees and trainers in that department. The four access levels can be renamed in Team setup; their powers stay the same.
 
 Privacy is enforced inside the database with row level security, so a bug in the app can't show private data to the wrong person. See [docs/SECURITY.md](docs/SECURITY.md).
 

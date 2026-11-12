@@ -152,3 +152,22 @@
   .signin__brand { padding: 40px 20px 32px; }
   .preview-phone { position: static; }
 }
+
+/* ---- departments ---- */
+.dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.member-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.member-row:last-child { border-bottom: none; }
+.member-row .icon-btn { background: var(--bg); }
+
+/* ---- team setup ---- */
+.setup-list { background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+.setup-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.setup-row:last-child { border-bottom: none; }
+.setup-row .icon-btn { background: var(--bg); }
+.setup-row--form { align-items: flex-end; background: var(--surface); border-radius: var(--radius); flex-wrap: wrap; }
+.setup-list .setup-row--form { border-radius: 0; }
+.setup-row__count { min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.dept-chip { background: var(--sage-dark); color: #fff; }
+@media (max-width: 899px) { .dept-grid { grid-template-columns: minmax(0, 1fr); } }
+.form-grid--pair { grid-template-columns: minmax(140px, 240px) minmax(0, 1fr); }
+@media (max-width: 899px) { .form-grid--pair { grid-template-columns: minmax(0, 1fr); } }

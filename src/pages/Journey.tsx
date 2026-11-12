@@ -15,7 +15,9 @@ import {
   type Journey as JourneyT,
 } from "../lib/journey";
 import { fetchMembers } from "../lib/members";
+import { canManageMember, fetchDepartmentsOf, type MyDepartment } from "../lib/departments";
 import { useAutoRefresh } from "../lib/refresh";
+import { roleLabel } from "../lib/labels";
 import { supabase, unwrap } from "../lib/supabase";
 import { confirmAction } from "../lib/telegram";
 import { firstName, type Member, type Profile, type RoadmapStep, type Tag } from "../lib/types";
@@ -23,7 +25,7 @@ import { firstName, type Member, type Profile, type RoadmapStep, type Tag } from
 /** /journey is your own road; /journey/:memberId is a trainee's road, for their leaders. */
 export function Journey() {
   const me = useMe();
-  const { isAdmin, isHead, refreshProfile } = useAuth();
+  const { refreshProfile } = useAuth();
   const { memberId } = useParams();
   const targetId = memberId ?? me.id;
   const self = targetId === me.id;
@@ -32,6 +34,8 @@ export function Journey() {
   const [journey, setJourney] = useState<JourneyT | null>(null);
   const [names, setNames] = useState<Record<string, Member>>({});
   const [serving, setServing] = useState<Tag[]>([]);
+  const [departments, setDepartments] = useState<MyDepartment[]>([]);
+  const [canManage, setCanManage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<
     { kind: "story" } | { kind: "step"; step: RoadmapStep } | { kind: "add-step" } | { kind: "win" } | null
@@ -42,9 +46,13 @@ export function Journey() {
   const load = useCallback(async () => {
     try {
       const p = self ? me : (unwrap(await supabase.from("profiles").select("*").eq("id", targetId).single()) as Profile);
-      const [j, pt] = await Promise.all([
+      const [j, pt, depts, manage] = await Promise.all([
         fetchJourney(targetId),
         supabase.from("profile_tags").select("tag_id").eq("profile_id", targetId),
+        fetchDepartmentsOf(targetId),
+        // The database decides who may record this journey (their trainer,
+        // their department Head, admins, Heads).
+        canManageMember(targetId),
       ]);
       // Instrument and level tags a leader gave this person. (General tags are
       // leader-only notes; the database doesn't return them to trainees.)
@@ -64,6 +72,8 @@ export function Journey() {
           .filter((t) => t.kind !== "general")
           .sort((a, b) => (a.kind === b.kind ? a.label.localeCompare(b.label) : a.kind === "instrument" ? -1 : 1)),
       );
+      setDepartments(depts);
+      setCanManage(manage);
       setJourney(j);
       setError(null);
     } catch (e) {
@@ -77,8 +87,6 @@ export function Journey() {
   // Leaders may sign off steps or edit the roadmap from the web console while this is open.
   useAutoRefresh(load);
 
-  // Mirrors can_manage_member() in the database, which has the final say.
-  const canManage = Boolean(person) && (isHead || (!self && (isAdmin || person!.trainer_id === me.id)));
   const focus = useMemo(() => (journey ? focusStep(journey) : null), [journey]);
   const doneCount = useMemo(
     () => (journey ? Object.values(stepStates(journey)).filter((s) => s === "done").length : 0),
@@ -104,12 +112,26 @@ export function Journey() {
         </div>
       </header>
 
-      {serving.length ? (
-        <div className="row row--wrap" style={{ gap: 6 }} aria-label="Serving areas">
+      {departments.length || serving.length ? (
+        <div className="row row--wrap" style={{ gap: 6 }} aria-label="Departments and serving roles">
+          {departments.map((d) => (
+            <span key={d.department.id} className="badge badge--dept">
+              {d.department.name}
+              {d.isHead ? " · Head" : ""}
+            </span>
+          ))}
           {serving.map((t) => (
             <span key={t.id} className="badge">{t.label}</span>
           ))}
         </div>
+      ) : null}
+      {departments.some((d) => d.heads.length) ? (
+        <span className="tiny muted" style={{ marginTop: -8 }}>
+          {departments
+            .filter((d) => d.heads.length)
+            .map((d) => `Head of ${d.department.name}: ${d.heads.join(", ")}`)
+            .join(" · ")}
+        </span>
       ) : null}
 
       <section className="hero" aria-label="Where you are now">
@@ -124,7 +146,7 @@ export function Journey() {
         )}
         <span className="hero__label">
           {doneCount === 0 ? "No steps signed off yet" : `${doneCount} ${doneCount === 1 ? "step" : "steps"} signed off`}
-          {trainerName ? ` · Trainer: ${trainerName}` : ""}
+          {trainerName ? ` · ${roleLabel("trainer")}: ${trainerName}` : ""}
         </span>
       </section>
 

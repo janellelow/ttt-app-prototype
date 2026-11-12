@@ -18,7 +18,8 @@ export const anonKeyValue = "demo";
 
 const PERSONAS = [
   { id: "u-sofia", label: "Sofia · Trainee", app: "miniapp" },
-  { id: "u-marcus", label: "Marcus · Trainer", app: "both" },
+  { id: "u-marcus", label: "Marcus · Trainer, Head of Band", app: "both" },
+  { id: "u-joel", label: "Joel · Trainer, Head of Production", app: "both" },
   { id: "u-priya", label: "Priya · Admin", app: "both" },
   { id: "u-jamie", label: "Jamie · Head of Dept", app: "both" },
 ] as const;
@@ -39,7 +40,7 @@ function store(key: string, value: string | null) {
   }
 }
 
-const DB_KEY = "ttt-demo-data-v1";
+const DB_KEY = "ttt-demo-data-v2";
 const personaKey = isConsole ? "ttt-demo-console-as" : "ttt-demo-as";
 const allowed = PERSONAS.filter((p) => !isConsole || p.app === "both").map((p) => p.id as string);
 let ME: string = stored(personaKey) ?? (isConsole ? "u-jamie" : "u-sofia");
@@ -159,15 +160,35 @@ const db: Record<string, Row[]> = {
     person("u-mei", "Mei Chen", "trainee", null, null, 0.2, null, null, "meichen"),
     person("u-daniel", "Daniel Ong", "trainee", null, null, 0.03, null, null, "danielong"),
   ],
+  // Serving roles (kind "instrument"), levels and private notes.
   tags: [
-    ["t1", "Drums", "instrument"], ["t2", "Guitar", "instrument"], ["t3", "Bass", "instrument"], ["t4", "Keys", "instrument"],
-    ["t5", "Vocals", "instrument"], ["t6", "Live sound", "instrument"], ["t7", "Beginner", "level"], ["t8", "Intermediate", "level"],
-    ["t9", "Advanced", "level"], ["t10", "Worship leading", "instrument"],
-  ].map(([id, label, kind]) => ({ id, label, kind })),
+    ["t1", "Drummer", "instrument", "d-band"], ["t2", "Guitarist", "instrument", "d-band"], ["t3", "Bassist", "instrument", "d-band"],
+    ["t4", "Keys", "instrument", "d-band"], ["t5", "Vocalist", "instrument", "d-vocals"], ["t10", "Worship Leader", "instrument", "d-vocals"],
+    ["t6", "Sound Engineer", "instrument", "d-prod"], ["t11", "Media & Slides", "instrument", "d-media"],
+    ["t7", "Beginner", "level", null], ["t8", "Intermediate", "level", null], ["t9", "Advanced", "level", null],
+    ["t12", "Needs a mentor", "general", null],
+  ].map(([id, label, kind, department_id]) => ({ id, label, kind, department_id, description: null })),
+  departments: [
+    { id: "d-band", name: "Band", description: "Drums, guitars, bass and keys", sort_order: 1, created_at: ago(300) },
+    { id: "d-vocals", name: "Vocals", description: "Worship leaders and singers", sort_order: 2, created_at: ago(300) },
+    { id: "d-prod", name: "Production", description: "Sound, lights and live stream", sort_order: 3, created_at: ago(300) },
+    { id: "d-media", name: "Media", description: "Slides, visuals and social", sort_order: 4, created_at: ago(200) },
+  ],
+  department_members: [
+    ["d-band", "u-marcus", true], ["d-band", "u-sofia", false], ["d-band", "u-aiden", false], ["d-band", "u-hannah", false],
+    ["d-vocals", "u-priya", true], ["d-vocals", "u-grace", false],
+    ["d-prod", "u-joel", true], ["d-prod", "u-ravi", false],
+  ].map(([department_id, profile_id, is_head]) => ({ department_id, profile_id, is_head, added_by: "u-jamie", added_at: ago(200) })),
+  access_levels: [
+    { role: "trainee", label: "Trainee", description: "Everyone on the team: their own journey, community, lessons and feedback." },
+    { role: "trainer", label: "Trainer", description: "Looks after their own trainees: journeys, feedback and lessons." },
+    { role: "admin", label: "Admin", description: "Places people and looks after everyone's journeys." },
+    { role: "head", label: "Head of Dept", description: "Runs the whole team: roles, departments, roadmap, team setup, console access and the change log." },
+  ],
   profile_tags: [
     ["u-sofia", "t1"], ["u-sofia", "t8"], ["u-aiden", "t2"], ["u-aiden", "t7"], ["u-grace", "t5"], ["u-grace", "t9"],
     ["u-grace", "t10"], ["u-ravi", "t6"], ["u-ravi", "t8"], ["u-hannah", "t4"], ["u-hannah", "t7"], ["u-marcus", "t1"],
-    ["u-joel", "t6"], ["u-jamie", "t10"], ["u-jamie", "t5"],
+    ["u-joel", "t6"], ["u-jamie", "t10"], ["u-jamie", "t5"], ["u-aiden", "t12"],
   ].map(([profile_id, tag_id]) => ({ profile_id, tag_id })),
   roadmap_steps: [
     ...STEPS.map(([title, description], i) => ({ id: `s${i + 1}`, profile_id: null, title, description, position: i + 1, created_by: "u-jamie", created_at: ago(400) })),
@@ -286,8 +307,17 @@ const isHead = () => myRole() === "head";
 const isAdmin = () => myRole() === "admin" || isHead();
 const isStaff = () => myRole() === "trainer" || isAdmin();
 const myGroup = () => profileOf(ME)?.age_group_id ?? null;
-const canView = (member: string) => member === ME || isAdmin() || profileOf(member)?.trainer_id === ME;
-const canManage = (member: string) => isHead() || (member !== ME && (isAdmin() || profileOf(member)?.trainer_id === ME));
+const deptRows = () => db.department_members ?? [];
+const inDept = (dept: string) => deptRows().some((m) => m.department_id === dept && m.profile_id === ME);
+const headsDept = (dept: string) => isStaff() && deptRows().some((m) => m.department_id === dept && m.profile_id === ME && m.is_head);
+// A department Head looks after the trainees and trainers in their department.
+const leadsMember = (member: string) =>
+  member !== ME &&
+  ["trainee", "trainer"].includes(profileOf(member)?.role) &&
+  deptRows().some((m) => m.profile_id === member && headsDept(m.department_id));
+const canView = (member: string) => member === ME || isAdmin() || profileOf(member)?.trainer_id === ME || leadsMember(member);
+const canManage = (member: string) =>
+  isHead() || (member !== ME && (isAdmin() || profileOf(member)?.trainer_id === ME || leadsMember(member)));
 const unplacedTrainee = (id: string) => {
   const p = profileOf(id);
   return Boolean(p && !p.age_group_id && p.role === "trainee");
@@ -295,7 +325,9 @@ const unplacedTrainee = (id: string) => {
 const submissionOwner = (id: string) => db.submissions!.find((s) => s.id === id)?.trainee_id;
 
 const readable: Record<string, (r: Row) => boolean> = {
-  profiles: (r) => r.id === ME || isAdmin() || r.trainer_id === ME || (isStaff() && unplacedTrainee(r.id)),
+  profiles: (r) => r.id === ME || isAdmin() || r.trainer_id === ME || leadsMember(r.id) || (isStaff() && unplacedTrainee(r.id)),
+  department_members: (r) =>
+    r.profile_id === ME || isAdmin() || headsDept(r.department_id) || (r.is_head && inDept(r.department_id)) || canView(r.profile_id),
   // Leaders read every tag; people read their own instrument and level tags.
   tags: (r) => isStaff() || (r.kind !== "general" && db.profile_tags!.some((pt) => pt.tag_id === r.id && pt.profile_id === ME)),
   profile_tags: (r) => canView(r.profile_id) || (isStaff() && unplacedTrainee(r.profile_id)),
@@ -319,7 +351,23 @@ const writable: Record<string, (r: Row) => boolean> = {
   profiles: (r) => r.id === ME,
   console_access: () => false,
   audit_log: () => false,
+  departments: () => isHead(),
+  department_members: (r) => isHead() || (isAdmin() && !r.is_head),
+  access_levels: () => isHead(),
+  age_groups: () => isAdmin(),
+  tags: () => isStaff(),
 };
+
+/** The database's checks that run before a write (see the *_team_setup.sql triggers). */
+function refuse(table: string, op: string, r: Row): string | null {
+  if (table === "department_members" && r.is_head && !["trainer", "admin", "head"].includes(profileOf(r.profile_id)?.role)) {
+    return "Make this person a trainer or higher before making them a department Head";
+  }
+  if (table === "age_groups" && op === "DELETE" && (db.profiles!.some((p) => p.age_group_id === r.id) || db.posts!.some((p) => p.age_group_id === r.id))) {
+    return "This age group still has people or posts. Rename it, or move everyone out first.";
+  }
+  return null;
+}
 
 function rowsOf(table: string): Row[] {
   if (table === "member_directory") {
@@ -379,6 +427,8 @@ class Query implements PromiseLike<{ data: any; error: any }> {
         const existing = this.op === "upsert" ? all.find((r) => this.conflict.every((k) => r[k] === item[k])) : undefined;
         const row = this.complete(item, existing);
         if (!canWrite(row)) return { data: null, error: DENIED };
+        const no = refuse(t, "INSERT", row);
+        if (no) return { data: null, error: { message: no } };
         if (existing) Object.assign(existing, row);
         else all.push(row);
         out.push(row);
@@ -386,7 +436,9 @@ class Query implements PromiseLike<{ data: any; error: any }> {
       }
     } else if (this.op === "update") {
       out = visible.filter(match);
-      if (out.some((r) => !canWrite(r))) return { data: null, error: DENIED };
+      if (out.some((r) => !canWrite(r) || !canWrite({ ...r, ...this.payload }))) return { data: null, error: DENIED };
+      const no = out.map((r) => refuse(t, "UPDATE", { ...r, ...this.payload })).find(Boolean);
+      if (no) return { data: null, error: { message: no } };
       out.forEach((r) => {
         if (t === "profiles" && ("vision" in this.payload || "growing_in" in this.payload)) r.profile_updated_at = new Date().toISOString();
         Object.assign(r, this.payload);
@@ -395,7 +447,11 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     } else if (this.op === "delete") {
       out = visible.filter(match);
       if (out.some((r) => !canWrite(r))) return { data: null, error: DENIED };
+      const no = out.map((r) => refuse(t, "DELETE", r)).find(Boolean);
+      if (no) return { data: null, error: { message: no } };
       db[t] = all.filter((r) => !out.includes(r));
+      if (t === "departments") db.department_members = deptRows().filter((m) => out.every((d) => d.id !== m.department_id));
+      if (t === "tags") db.profile_tags = db.profile_tags!.filter((pt) => out.every((x) => x.id !== pt.tag_id));
       out.forEach((r) => this.afterWrite("DELETE", r));
       if (t === "roadmap_steps") db.roadmap_progress = db.roadmap_progress!.filter((p) => out.every((s) => s.id !== p.step_id));
     } else {
@@ -441,6 +497,16 @@ class Query implements PromiseLike<{ data: any; error: any }> {
       const step = db.roadmap_steps!.find((s) => s.id === r.step_id)?.title;
       log(op === "DELETE" ? "roadmap_step_cleared" : "roadmap_step_updated", r.profile_id, { step, status: op === "DELETE" ? null : r.status });
     }
+    if (this.table === "department_members") {
+      const department = db.departments!.find((d) => d.id === r.department_id)?.name;
+      const action = op === "INSERT" ? "department_member_added" : op === "DELETE" ? "department_member_removed" : "department_head_changed";
+      log(action, r.profile_id, { department, is_head: r.is_head });
+    }
+    if (["departments", "access_levels", "tags", "age_groups"].includes(this.table)) {
+      const area = { departments: "department", access_levels: "access level", age_groups: "age group" }[this.table as "departments"] ??
+        ({ instrument: "serving role", level: "level" } as Row)[r.kind] ?? "private note";
+      log("setup_changed", null as unknown as string, { area, op: { INSERT: "added", UPDATE: "changed", DELETE: "removed" }[op], name: r.name ?? r.label });
+    }
     if (this.table === "accomplishments") {
       log({ INSERT: "accomplishment_added", UPDATE: "accomplishment_edited", DELETE: "accomplishment_removed" }[op], r.profile_id, { title: r.title });
     }
@@ -477,12 +543,16 @@ const rpcs: Record<string, (a: any) => { data: any; error: any }> = {
     const quiz = db.quizzes!.find((q) => q.id === a.p_quiz)!;
     return { data: { score, total: qs.length, passed: score >= quiz.pass_mark, results }, error: null };
   },
+  can_manage_member: (a) => ({ data: canManage(a.member), error: null }),
   assign_member: (a) => {
     const target = profileOf(a.p_member);
     if (!target || !isStaff()) return { data: null, error: DENIED };
     const newRole = a.p_role ?? target.role;
     if (newRole !== target.role && !isHead()) return { data: null, error: { message: "Only the Head of Department can change roles" } };
     if (target.role === "head" && !isHead()) return { data: null, error: { message: "Only a Head of Department can change another Head of Department" } };
+    if (myRole() === "trainer" && !leadsMember(a.p_member) && !(target.role === "trainee" && (!target.age_group_id || target.trainer_id === ME))) {
+      return { data: null, error: { message: "Trainers can only assign unplaced members, their own trainees or their department" } };
+    }
     Object.assign(target, { role: newRole, age_group_id: a.p_age_group, trainer_id: a.p_trainer });
     db.profile_tags = db.profile_tags!.filter((t) => t.profile_id !== a.p_member).concat(
       (a.p_tag_ids ?? []).map((tag_id: string) => ({ profile_id: a.p_member, tag_id })),

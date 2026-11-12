@@ -1,13 +1,17 @@
 // Everything the web console shows, loaded in one go. The database rules
-// decide what comes back: Heads and admins get everyone, trainers get their
-// own trainees and people nobody has placed yet.
+// decide what comes back: Heads and admins get everyone; trainers get their
+// own trainees, their department (if they head one) and people nobody has
+// placed yet.
 
 import { focusStep, type Journey, type StepState } from "../lib/journey";
+import { loadRoleLabels } from "../lib/labels";
 import { fetchAgeGroups } from "../lib/members";
 import { supabase, unwrap } from "../lib/supabase";
 import type {
   Accomplishment,
   AgeGroup,
+  Department,
+  DepartmentMember,
   Member,
   Profile,
   RoadmapProgress,
@@ -25,12 +29,15 @@ export interface Team {
   steps: RoadmapStep[];
   progress: RoadmapProgress[];
   accomplishments: Accomplishment[];
+  departments: Department[];
+  /** Department memberships you're allowed to see. */
+  deptMembers: DepartmentMember[];
 }
 
 export async function fetchTeam(): Promise<Team> {
   const people = unwrap(await supabase.from("profiles").select("*").order("display_name")) as Profile[];
   const ids = people.map((p) => p.id);
-  const [groups, tags, pt, leaders, steps, progress, wins] = await Promise.all([
+  const [groups, tags, pt, leaders, steps, progress, wins, depts, dm] = await Promise.all([
     fetchAgeGroups(),
     supabase.from("tags").select("*").order("kind").order("label"),
     ids.length ? supabase.from("profile_tags").select("profile_id, tag_id").in("profile_id", ids) : Promise.resolve({ data: [] }),
@@ -38,6 +45,9 @@ export async function fetchTeam(): Promise<Team> {
     supabase.from("roadmap_steps").select("*").order("position"),
     supabase.from("roadmap_progress").select("*"),
     supabase.from("accomplishments").select("*").order("achieved_on", { ascending: false }),
+    supabase.from("departments").select("*").order("sort_order").order("name"),
+    supabase.from("department_members").select("department_id, profile_id, is_head"),
+    loadRoleLabels(),
   ]);
   const tagsOf: Record<string, string[]> = {};
   ((pt.data ?? []) as { profile_id: string; tag_id: string }[]).forEach((r) => (tagsOf[r.profile_id] ??= []).push(r.tag_id));
@@ -50,6 +60,8 @@ export async function fetchTeam(): Promise<Team> {
     steps: unwrap(steps) as RoadmapStep[],
     progress: unwrap(progress) as RoadmapProgress[],
     accomplishments: unwrap(wins) as Accomplishment[],
+    departments: unwrap(depts) as Department[],
+    deptMembers: unwrap(dm) as DepartmentMember[],
   };
 }
 
@@ -83,4 +95,19 @@ export function namesOf(team: Team): Record<string, Member> {
 
 export function daysAgo(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 86_400_000;
+}
+
+/** Departments a person is in. */
+export function departmentsOf(team: Team, personId: string): { department: Department; isHead: boolean }[] {
+  return team.departments
+    .map((d) => {
+      const m = team.deptMembers.find((x) => x.department_id === d.id && x.profile_id === personId);
+      return m ? { department: d, isHead: m.is_head } : null;
+    })
+    .filter((x): x is { department: Department; isHead: boolean } => x !== null);
+}
+
+/** Departments the signed-in leader is a Head of. */
+export function headedBy(team: Team, leaderId: string): string[] {
+  return team.deptMembers.filter((m) => m.profile_id === leaderId && m.is_head).map((m) => m.department_id);
 }

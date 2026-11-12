@@ -6,11 +6,12 @@ import { Roadmap } from "../../components/Roadmap";
 import { Avatar, ErrorNote, RoleBadge } from "../../components/ui";
 import { errorText, timeAgo } from "../../lib/format";
 import { formatDay, removeAccomplishment } from "../../lib/journey";
-import { supabase } from "../../lib/supabase";
-import { firstName, type Profile, type Role, type RoadmapStep } from "../../lib/types";
+import { roleLabel } from "../../lib/labels";
+import { supabase, unwrap } from "../../lib/supabase";
+import { firstName, TAG_KIND_LABEL, type Profile, type Role, type RoadmapStep, type TagKind } from "../../lib/types";
 import { useConsoleAuth, useLeader } from "../auth";
 import { useTeam } from "../ConsoleApp";
-import { journeyOf, namesOf } from "../data";
+import { departmentsOf, headedBy, journeyOf, namesOf, type Team } from "../data";
 
 export function Person() {
   const me = useLeader();
@@ -26,7 +27,10 @@ export function Person() {
     return (
       <div className="page">
         <Link to="/people" className="back-link">← People</Link>
-        <p className="muted">This person isn't on your list. Trainers see their own trainees and people nobody has placed yet.</p>
+        <p className="muted">
+          This person isn't on your list. Trainers see their own trainees, their department (if they head one) and people
+          nobody has placed yet.
+        </p>
       </div>
     );
   }
@@ -34,7 +38,7 @@ export function Person() {
   const journey = journeyOf(team, person.id);
   const first = firstName(person.display_name);
   // Mirrors can_manage_member() in the database, which has the final say.
-  const canManage = isHead || (person.id !== me.id && (isAdmin || person.trainer_id === me.id));
+  const canManage = isHead || (person.id !== me.id && (isAdmin || person.trainer_id === me.id || leadsMember(team, me.id, person)));
   const done = () => {
     setSheet(null);
     reload();
@@ -73,6 +77,7 @@ export function Person() {
             </span>
           </section>
 
+          <DepartmentsPanel person={person} />
           <Placement person={person} onSaved={reload} />
         </div>
 
@@ -166,15 +171,19 @@ function Placement({ person, onSaved }: { person: Profile; onSaved: () => Promis
   const { team } = useTeam();
   const [role, setRole] = useState<Role>(person.role);
   const [groupId, setGroupId] = useState(person.age_group_id ?? "");
-  const [trainerId, setTrainerId] = useState(person.trainer_id ?? (isAdmin ? "" : me.id));
+  const [trainerId, setTrainerId] = useState(
+    person.trainer_id ?? (isAdmin || leadsMember(team, me.id, person) ? "" : me.id),
+  );
   const [selected, setSelected] = useState<string[]>(team.tagsOf[person.id] ?? []);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const leads = leadsMember(team, me.id, person);
   const canEdit =
     isHead ||
     (isAdmin && person.role !== "head") ||
+    leads ||
     (person.role === "trainee" && (!person.age_group_id || person.trainer_id === me.id));
   if (!canEdit) return null;
 
@@ -210,10 +219,9 @@ function Placement({ person, onSaved }: { person: Profile; onSaved: () => Promis
           <div className="field">
             <label className="label" htmlFor="pl-role">Role</label>
             <select id="pl-role" className="select" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-              <option value="trainee">Trainee</option>
-              <option value="trainer">Trainer</option>
-              <option value="admin">Admin</option>
-              <option value="head">Head of Department</option>
+              {(["trainee", "trainer", "admin", "head"] as Role[]).map((r) => (
+                <option key={r} value={r}>{roleLabel(r)}</option>
+              ))}
             </select>
           </div>
         ) : null}
@@ -227,8 +235,8 @@ function Placement({ person, onSaved }: { person: Profile; onSaved: () => Promis
           </select>
         </div>
         <div className="field">
-          <label className="label" htmlFor="pl-trainer">Trainer</label>
-          {isAdmin ? (
+          <label className="label" htmlFor="pl-trainer">{roleLabel("trainer")}</label>
+          {isAdmin || leads ? (
             <select id="pl-trainer" className="select" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
               <option value="">No trainer</option>
               {team.leaders.filter((l) => l.id !== person.id).map((l) => (
@@ -240,22 +248,31 @@ function Placement({ person, onSaved }: { person: Profile; onSaved: () => Promis
           )}
         </div>
       </div>
-      <div className="field">
-        <span className="label" id="pl-tags">Serving areas and tags</span>
-        <div className="row row--wrap" style={{ gap: 6 }} role="group" aria-labelledby="pl-tags">
-          {team.tags.map((t) => (
-            <button
-              key={t.id}
-              className={`chip chip--sm${selected.includes(t.id) ? " chip--sage" : ""}`}
-              style={selected.includes(t.id) ? undefined : { border: "1px solid var(--line-2)" }}
-              aria-pressed={selected.includes(t.id)}
-              onClick={() => toggle(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {(["instrument", "level", "general"] as TagKind[]).map((kind) => {
+        const tags = team.tags.filter((t) => t.kind === kind);
+        if (!tags.length) return null;
+        return (
+          <div className="field" key={kind}>
+            <span className="label" id={`pl-tags-${kind}`}>
+              {TAG_KIND_LABEL[kind]}s{kind === "general" ? " (only leaders see these)" : ""}
+            </span>
+            <div className="row row--wrap" style={{ gap: 6 }} role="group" aria-labelledby={`pl-tags-${kind}`}>
+              {tags.map((t) => (
+                <button
+                  key={t.id}
+                  className={`chip chip--sm${selected.includes(t.id) ? " chip--sage" : ""}`}
+                  style={selected.includes(t.id) ? undefined : { border: "1px solid var(--line-2)" }}
+                  aria-pressed={selected.includes(t.id)}
+                  title={t.description ?? undefined}
+                  onClick={() => toggle(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
       <ErrorNote error={error} />
       <div className="row" style={{ gap: 12 }}>
         <button className="btn btn--dark btn--sm" disabled={busy} onClick={save}>
@@ -263,6 +280,98 @@ function Placement({ person, onSaved }: { person: Profile; onSaved: () => Promis
         </button>
         {saved ? <span className="small muted">Saved and logged.</span> : null}
       </div>
+    </section>
+  );
+}
+
+/** A department Head looks after the trainees and trainers in their department (see leads_member()). */
+function leadsMember(team: Team, leaderId: string, person: Profile): boolean {
+  if (person.id === leaderId || (person.role !== "trainee" && person.role !== "trainer")) return false;
+  const mine = headedBy(team, leaderId);
+  return departmentsOf(team, person.id).some((d) => mine.includes(d.department.id));
+}
+
+/** Which departments someone is in. Admins and Heads change it; only Heads appoint department Heads. */
+function DepartmentsPanel({ person }: { person: Profile }) {
+  const { isAdmin, isHead } = useConsoleAuth();
+  const { team, reload } = useTeam();
+  const [adding, setAdding] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const current = departmentsOf(team, person.id);
+  const others = team.departments.filter((d) => !current.some((c) => c.department.id === d.id));
+  const canLead = person.role !== "trainee";
+
+  async function act(fn: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await fn();
+      await reload();
+    } catch (e) {
+      setError(errorText(e));
+    }
+  }
+
+  if (!current.length && !isAdmin) return null;
+
+  return (
+    <section className="panel">
+      <h2 className="h3">Departments</h2>
+      {current.length === 0 ? <p className="small muted" style={{ margin: 0 }}>Not in a department yet.</p> : null}
+      {current.map(({ department, isHead: heads }) => (
+        <div key={department.id} className="member-row">
+          <span className="row" style={{ gap: 8 }}>
+            <span className="pill dept-chip">{department.name}</span>
+            {heads ? <span className="small">Head of {department.name}</span> : null}
+          </span>
+          <span className="row" style={{ gap: 6 }}>
+            {isHead && (heads || canLead) ? (
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={() =>
+                  act(async () =>
+                    unwrap(await supabase.from("department_members").update({ is_head: !heads }).eq("department_id", department.id).eq("profile_id", person.id)),
+                  )
+                }
+              >
+                {heads ? "Stop being Head" : "Make Head"}
+              </button>
+            ) : null}
+            {isAdmin && (!heads || isHead) ? (
+              <button
+                className="icon-btn icon-btn--sm"
+                aria-label={`Take ${person.display_name} out of ${department.name}`}
+                onClick={() =>
+                  act(async () => unwrap(await supabase.from("department_members").delete().eq("department_id", department.id).eq("profile_id", person.id)))
+                }
+              >
+                <Icon name="close" size={14} />
+              </button>
+            ) : null}
+          </span>
+        </div>
+      ))}
+      {isAdmin && others.length ? (
+        <form
+          className="row"
+          style={{ gap: 8 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!adding) return;
+            act(async () => unwrap(await supabase.from("department_members").insert({ department_id: adding, profile_id: person.id })));
+            setAdding("");
+          }}
+        >
+          <label className="sr-only" htmlFor="dp-add">Add to a department</label>
+          <select id="dp-add" className="select grow" value={adding} onChange={(e) => setAdding(e.target.value)}>
+            <option value="">Add to a department…</option>
+            {others.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+          <button type="submit" className="btn btn--dark btn--sm" disabled={!adding}>Add</button>
+        </form>
+      ) : null}
+      <ErrorNote error={error} />
     </section>
   );
 }

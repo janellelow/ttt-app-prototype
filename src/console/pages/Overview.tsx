@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Avatar } from "../../components/ui";
 import { greeting, timeAgo } from "../../lib/format";
+import { roleLabel } from "../../lib/labels";
 import { firstName } from "../../lib/types";
 import { useConsoleAuth, useLeader } from "../auth";
 import { useTeam } from "../ConsoleApp";
@@ -52,16 +53,16 @@ export function Overview() {
             {greeting()}, {firstName(me.display_name)}
           </h1>
           <p className="muted">
-            {isAdmin ? "The worship team at a glance." : "Your trainees at a glance, plus newcomers waiting to be placed."}
+            {isAdmin ? "The worship team at a glance." : `Your ${roleLabel("trainee").toLowerCase()}s at a glance, plus newcomers waiting to be placed.`}
           </p>
         </div>
       </header>
 
       <section className="tiles">
         <div className="tile">
-          <span className="tile__label">{isAdmin ? "People on the team" : "Your trainees"}</span>
+          <span className="tile__label">{isAdmin ? "People on the team" : `Your ${roleLabel("trainee").toLowerCase()}s`}</span>
           <span className="tile__value">{isAdmin ? members.length : trainees.filter((p) => p.trainer_id === me.id).length}</span>
-          <span className="tile__sub">{trainees.length} trainees</span>
+          <span className="tile__sub">{trainees.length} {roleLabel("trainee").toLowerCase()}s</span>
         </div>
         <Link to="/people?show=unplaced" className="tile tile--link">
           <span className="tile__label">Waiting to be placed</span>
@@ -83,7 +84,7 @@ export function Overview() {
       <div className="split">
         <section className="panel">
           <div className="panel__head">
-            <h2 className="h3">Where trainees are on the road</h2>
+            <h2 className="h3">Where {roleLabel("trainee").toLowerCase()}s are on the road</h2>
             <Link to="/roadmap" className="small">Edit roadmap</Link>
           </div>
           <ol className="dist">

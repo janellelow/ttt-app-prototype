@@ -1,7 +1,7 @@
 export type Role = "trainee" | "trainer" | "admin" | "head";
 
-/** How each role is named on screen. */
-export const ROLE_LABEL: Record<Role, string> = {
+/** Built-in names for the access levels. Heads can rename them (see lib/labels.ts). */
+export const DEFAULT_ROLE_LABEL: Record<Role, string> = {
   trainee: "Trainee",
   trainer: "Trainer",
   admin: "Admin",
@@ -40,10 +40,41 @@ export interface AgeGroup {
   sort_order: number;
 }
 
+export type TagKind = "instrument" | "level" | "general";
+
 export interface Tag {
   id: string;
   label: string;
-  kind: "instrument" | "level" | "general";
+  /** "instrument" = a serving role (Worship Leader, Drummer, Sound Engineer…). */
+  kind: TagKind;
+  department_id: string | null;
+  description: string | null;
+}
+
+/** What each kind of tag is called on screen. */
+export const TAG_KIND_LABEL: Record<TagKind, string> = {
+  instrument: "Serving role",
+  level: "Level",
+  general: "Private note",
+};
+
+export interface Department {
+  id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+}
+
+export interface DepartmentMember {
+  department_id: string;
+  profile_id: string;
+  is_head: boolean;
+}
+
+export interface AccessLevel {
+  role: Role;
+  label: string;
+  description: string | null;
 }
 
 export type Channel = "general" | "drums" | "guitar" | "bass" | "keys" | "vocals" | "live-sound";

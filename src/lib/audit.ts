@@ -16,6 +16,7 @@ export function describeAudit(r: AuditRow, name: (id: string | null) => string):
   const d = r.details ?? {};
   const step = typeof d.step === "string" ? d.step : null;
   const title = typeof d.title === "string" ? d.title : null;
+  const dept = typeof d.department === "string" ? d.department : "a department";
   switch (r.action) {
     case "assign_member":
       return `${who} updated ${whom}'s placement`;
@@ -33,6 +34,14 @@ export function describeAudit(r: AuditRow, name: (id: string | null) => string):
       return `${who} gave ${whom} web console access`;
     case "console_access_revoked":
       return `${who} removed ${whom}'s web console access`;
+    case "department_member_added":
+      return `${who} added ${whom} to ${dept}${d.is_head ? " as Head" : ""}`;
+    case "department_member_removed":
+      return `${who} took ${whom} out of ${dept}`;
+    case "department_head_changed":
+      return d.is_head ? `${who} made ${whom} Head of ${dept}` : `${who} removed ${whom} as Head of ${dept}`;
+    case "setup_changed":
+      return `${who} ${typeof d.op === "string" ? d.op : "changed"} the ${typeof d.area === "string" ? d.area : "setting"} "${typeof d.name === "string" ? d.name : ""}"`;
     default:
       return `${who} updated ${whom}`;
   }

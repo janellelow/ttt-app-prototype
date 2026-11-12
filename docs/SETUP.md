@@ -110,6 +110,8 @@ select id, 'you@gmail.com', 'PASTE-UID-HERE' from public.profiles where telegram
 | Sign off a roadmap step or record an accomplishment | Mini app: Members → person → View their journey. Web console: People → person |
 | Add a step just for one person | Same place → Add a personal step |
 | Change the roadmap everyone walks | Web console → Roadmap (Heads) |
+| Create a department, add people, appoint its Head | Web console → Departments (Heads; admins can add and remove members) |
+| Rename access levels (e.g. Trainee → Member), edit serving roles, levels, private notes, age groups | Web console → Team setup |
 | Change someone's role | Members → person, or web console → People → person → Placement (Heads) |
 | Let a leader use the web console | Web console → Console access (Heads) |
 | See who changed what | Web console → Change log, or Members → Change log (Heads) |

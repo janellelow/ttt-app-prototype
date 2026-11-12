@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Avatar, RoleBadge } from "../../components/ui";
 import { formatDay } from "../../lib/journey";
+import { roleLabel } from "../../lib/labels";
 import { useConsoleAuth, useLeader } from "../auth";
 import { useTeam } from "../ConsoleApp";
-import { namesOf, positionOf } from "../data";
+import { departmentsOf, headedBy, namesOf, positionOf } from "../data";
 
-type Show = "everyone" | "trainees" | "leaders" | "unplaced" | "mine";
+type Show = "everyone" | "trainees" | "leaders" | "unplaced" | "mine" | "my-dept" | `dept:${string}`;
 
 export function People() {
   const me = useLeader();
@@ -14,16 +15,20 @@ export function People() {
   const { team } = useTeam();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const show = (params.get("show") as Show) || (isAdmin ? "everyone" : "mine");
+  const show = (params.get("show") as Show) || (isAdmin ? "everyone" : headedBy(team, me.id).length ? "my-dept" : "mine");
   const [query, setQuery] = useState("");
   const names = useMemo(() => namesOf(team), [team]);
 
+  const myDepts = headedBy(team, me.id);
+  const inDept = (pid: string, ids: string[]) => team.deptMembers.some((m) => m.profile_id === pid && ids.includes(m.department_id));
   const filters: { id: Show; label: string }[] = [
     ...(isAdmin ? [{ id: "everyone" as Show, label: "Everyone" }] : []),
-    { id: "mine", label: "My trainees" },
-    { id: "trainees", label: "Trainees" },
+    ...(myDepts.length ? [{ id: "my-dept" as Show, label: "My department" }] : []),
+    { id: "mine", label: `My ${roleLabel("trainee").toLowerCase()}s` },
+    { id: "trainees", label: `${roleLabel("trainee")}s` },
     ...(isAdmin ? [{ id: "leaders" as Show, label: "Leaders" }] : []),
     { id: "unplaced", label: "Not placed" },
+    ...(isAdmin ? team.departments.map((d) => ({ id: `dept:${d.id}` as Show, label: d.name })) : []),
   ];
 
   const rows = useMemo(() => {
@@ -34,9 +39,12 @@ export function People() {
         if (show === "leaders") return p.role !== "trainee";
         if (show === "unplaced") return !p.age_group_id;
         if (show === "mine") return p.trainer_id === me.id;
+        if (show === "my-dept") return p.id !== me.id && inDept(p.id, myDepts);
+        if (show.startsWith("dept:")) return inDept(p.id, [show.slice(5)]);
         return true;
       })
       .filter((p) => !q || p.display_name.toLowerCase().includes(q) || (p.username ?? "").toLowerCase().includes(q));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team, show, query, me.id]);
 
   const group = (id: string | null) => team.groups.find((g) => g.id === id)?.label;
@@ -49,7 +57,7 @@ export function People() {
       <header className="page__head">
         <div>
           <h1 className="h1">People</h1>
-          <p className="muted">{isAdmin ? "Everyone on the worship team." : "Your trainees and newcomers waiting to be placed."}</p>
+          <p className="muted">{isAdmin ? "Everyone on the worship team." : `Your ${roleLabel("trainee").toLowerCase()}s, your department and newcomers waiting to be placed.`}</p>
         </div>
         <label className="sr-only" htmlFor="people-search">Search people</label>
         <input
@@ -81,8 +89,9 @@ export function People() {
             <tr>
               <th>Person</th>
               <th>Role</th>
+              <th>Departments</th>
               <th>Group</th>
-              <th>Trainer</th>
+              <th>{roleLabel("trainer")}</th>
               <th>Serving</th>
               <th>On the road</th>
               <th>Latest accomplishment</th>
@@ -91,7 +100,7 @@ export function People() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="muted">No one here.</td>
+                <td colSpan={8} className="muted">No one here.</td>
               </tr>
             ) : (
               rows.map((p) => {
@@ -108,7 +117,14 @@ export function People() {
                         </span>
                       </span>
                     </td>
-                    <td>{p.role === "trainee" ? <span className="muted">Trainee</span> : <RoleBadge role={p.role} />}</td>
+                    <td>{p.role === "trainee" ? <span className="muted">{roleLabel("trainee")}</span> : <RoleBadge role={p.role} />}</td>
+                    <td>
+                      <span className="row row--wrap" style={{ gap: 4 }}>
+                        {departmentsOf(team, p.id).map(({ department, isHead }) => (
+                          <span key={department.id} className="pill dept-chip">{department.name}{isHead ? " · Head" : ""}</span>
+                        ))}
+                      </span>
+                    </td>
                     <td>{group(p.age_group_id) ?? <span className="pill pill--warn">Not placed</span>}</td>
                     <td>{p.trainer_id ? names[p.trainer_id]?.display_name ?? "–" : <span className="muted">–</span>}</td>
                     <td>

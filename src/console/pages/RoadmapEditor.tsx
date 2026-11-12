@@ -119,8 +119,8 @@ export function RoadmapEditor() {
           ) : null}
         </section>
 
-        <aside className="panel preview-phone" aria-label="How trainees see it">
-          <span className="eyebrow">How trainees see it</span>
+        <aside className="panel preview-phone" aria-label="How it looks in the app">
+          <span className="eyebrow">How it looks in the app</span>
           <Roadmap
             journey={{ steps, progress: {}, accomplishments: [] }}
             names={{}}

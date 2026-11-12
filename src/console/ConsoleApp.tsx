@@ -4,15 +4,17 @@ import { Icon, type IconName } from "../components/Icon";
 import { Avatar, ErrorNote, Spinner } from "../components/ui";
 import { errorText } from "../lib/format";
 import { useAutoRefresh } from "../lib/refresh";
-import { ROLE_LABEL } from "../lib/types";
+import { roleLabel, useRoleLabels } from "../lib/labels";
 import { useConsoleAuth, useLeader } from "./auth";
 import { fetchTeam, type Team } from "./data";
 import { Access } from "./pages/Access";
 import { ChangeLog } from "./pages/ChangeLog";
+import { Departments } from "./pages/Departments";
 import { Overview } from "./pages/Overview";
 import { People } from "./pages/People";
 import { Person } from "./pages/Person";
 import { RoadmapEditor } from "./pages/RoadmapEditor";
+import { TeamSetup } from "./pages/TeamSetup";
 
 interface TeamCtx {
   team: Team;
@@ -28,6 +30,7 @@ export function useTeam(): TeamCtx {
 
 export function ConsoleApp() {
   const { status, message, signIn } = useConsoleAuth();
+  useRoleLabels();
 
   if (status === "loading") {
     return (
@@ -96,17 +99,19 @@ function GoogleMark() {
   );
 }
 
-const NAV: { to: string; label: string; icon: IconName; headOnly?: boolean }[] = [
+const NAV: { to: string; label: string; icon: IconName; show?: "admin" | "head" }[] = [
   { to: "/", label: "Overview", icon: "home" },
   { to: "/people", label: "People", icon: "community" },
+  { to: "/departments", label: "Departments", icon: "flag" },
   { to: "/roadmap", label: "Roadmap", icon: "journey" },
-  { to: "/access", label: "Console access", icon: "lock", headOnly: true },
-  { to: "/log", label: "Change log", icon: "text", headOnly: true },
+  { to: "/setup", label: "Team setup", icon: "settings", show: "admin" },
+  { to: "/access", label: "Console access", icon: "lock", show: "head" },
+  { to: "/log", label: "Change log", icon: "text", show: "head" },
 ];
 
 function Shell() {
   const me = useLeader();
-  const { isHead, signOut } = useConsoleAuth();
+  const { isAdmin, isHead, signOut } = useConsoleAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,7 +137,7 @@ function Shell() {
           <span>Leaders' console</span>
         </div>
         <nav className="console__links" aria-label="Sections">
-          {NAV.filter((n) => !n.headOnly || isHead).map((n) => (
+          {NAV.filter((n) => !n.show || (n.show === "admin" ? isAdmin : isHead)).map((n) => (
             <NavLink key={n.to} to={n.to} end={n.to === "/"} className={({ isActive }) => `console__link${isActive ? " is-active" : ""}`}>
               <Icon name={n.icon} size={18} />
               {n.label}
@@ -145,7 +150,7 @@ function Shell() {
             <span className="small" style={{ fontWeight: 700 }}>
               {me.display_name}
             </span>
-            <span className="tiny muted">{ROLE_LABEL[me.role]}</span>
+            <span className="tiny muted">{roleLabel(me.role)}</span>
           </span>
           <button className="btn btn--sm btn--ghost" onClick={signOut}>
             Sign out
@@ -163,7 +168,9 @@ function Shell() {
               <Route path="/" element={<Overview />} />
               <Route path="/people" element={<People />} />
               <Route path="/people/:personId" element={<Person />} />
+              <Route path="/departments" element={<Departments />} />
               <Route path="/roadmap" element={<RoadmapEditor />} />
+              <Route path="/setup" element={isAdmin ? <TeamSetup /> : <Navigate to="/" replace />} />
               <Route path="/access" element={isHead ? <Access /> : <Navigate to="/" replace />} />
               <Route path="/log" element={isHead ? <ChangeLog /> : <Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />

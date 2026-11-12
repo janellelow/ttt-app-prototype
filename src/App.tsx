@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { HashRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { TabBar } from "./components/TabBar";
 import { useAuth } from "./lib/auth";
+import { useRoleLabels } from "./lib/labels";
 import { tg } from "./lib/telegram";
 import { Admin } from "./pages/Admin";
 import { Community } from "./pages/Community";
@@ -50,6 +51,7 @@ function StaffOnly({ children }: { children: JSX.Element }) {
 
 export function App() {
   const { status, error, retry } = useAuth();
+  useRoleLabels();
 
   if (status === "loading") {
     return (

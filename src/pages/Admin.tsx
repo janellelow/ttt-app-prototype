@@ -9,9 +9,10 @@ import { fetchAgeGroups } from "../lib/members";
 import { useAutoRefresh } from "../lib/refresh";
 import { supabase, unwrap } from "../lib/supabase";
 import { haptic } from "../lib/telegram";
-import { ROLE_LABEL, type AgeGroup, type Member, type Profile, type Role, type Tag } from "../lib/types";
+import { roleLabel } from "../lib/labels";
+import type { AgeGroup, DepartmentMember, Member, Profile, Role, Tag } from "../lib/types";
 
-type Tab = "unassigned" | "mine" | "all" | "log";
+type Tab = "unassigned" | "mine" | "dept" | "all" | "log";
 
 export function Admin() {
   const me = useMe();
@@ -22,6 +23,8 @@ export function Admin() {
   const [profileTags, setProfileTags] = useState<Record<string, string[]>>({});
   const [groups, setGroups] = useState<AgeGroup[]>([]);
   const [staff, setStaff] = useState<Member[]>([]);
+  // People in the departments I'm a Head of.
+  const [myDeptPeople, setMyDeptPeople] = useState<string[]>([]);
   const [editing, setEditing] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +32,16 @@ export function Admin() {
     try {
       // Admins see everyone; trainers see their trainees and people nobody has placed yet.
       const ps = unwrap(await supabase.from("profiles").select("*").order("created_at", { ascending: false })) as Profile[];
-      const [t, pt, g, s] = await Promise.all([
+      const [t, pt, g, s, dm] = await Promise.all([
         supabase.from("tags").select("*").order("kind").order("label"),
         ps.length ? supabase.from("profile_tags").select("profile_id, tag_id").in("profile_id", ps.map((p) => p.id)) : Promise.resolve({ data: [] }),
         fetchAgeGroups(),
         supabase.from("member_directory").select("*").in("role", ["trainer", "admin", "head"]).order("display_name"),
+        supabase.from("department_members").select("department_id, profile_id, is_head"),
       ]);
+      const rows = (dm.data as DepartmentMember[] | null) ?? [];
+      const headed = rows.filter((r) => r.profile_id === me.id && r.is_head).map((r) => r.department_id);
+      setMyDeptPeople([...new Set(rows.filter((r) => headed.includes(r.department_id) && r.profile_id !== me.id).map((r) => r.profile_id))]);
       const map: Record<string, string[]> = {};
       ((pt.data ?? []) as { profile_id: string; tag_id: string }[]).forEach((r) => {
         (map[r.profile_id] ??= []).push(r.tag_id);
@@ -59,8 +66,9 @@ export function Admin() {
     const others = people.filter((p) => p.id !== me.id);
     if (tab === "unassigned") return others.filter((p) => !p.age_group_id);
     if (tab === "mine") return others.filter((p) => p.trainer_id === me.id);
+    if (tab === "dept") return others.filter((p) => myDeptPeople.includes(p.id));
     return others;
-  }, [people, tab, me.id]);
+  }, [people, tab, me.id, myDeptPeople]);
 
   const groupLabel = (id: string | null) => groups.find((g) => g.id === id)?.label;
   const tagLabels = (pid: string) =>
@@ -71,7 +79,7 @@ export function Admin() {
     <main className="screen">
       <div className="row row--between">
         <h1 className="h1">Members</h1>
-        <span className="badge badge--dark">{ROLE_LABEL[me.role]}</span>
+        <span className="badge badge--dark">{roleLabel(me.role)}</span>
       </div>
       <PrivateBadge>Seen only by leaders. Every change is logged.</PrivateBadge>
 
@@ -80,8 +88,13 @@ export function Admin() {
           Unassigned · {unassignedCount}
         </button>
         <button role="tab" aria-selected={tab === "mine"} className={`chip${tab === "mine" ? " chip--active" : ""}`} onClick={() => setTab("mine")}>
-          My trainees
+          My {roleLabel("trainee").toLowerCase()}s
         </button>
+        {myDeptPeople.length ? (
+          <button role="tab" aria-selected={tab === "dept"} className={`chip${tab === "dept" ? " chip--active" : ""}`} onClick={() => setTab("dept")}>
+            My department
+          </button>
+        ) : null}
         {isAdmin ? (
           <>
             <button role="tab" aria-selected={tab === "all"} className={`chip${tab === "all" ? " chip--active" : ""}`} onClick={() => setTab("all")}>
@@ -213,10 +226,9 @@ function AssignSheet({
         <div className="field">
           <label className="label" htmlFor="as-role">Role</label>
           <select id="as-role" className="select" value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            <option value="trainee">Trainee</option>
-            <option value="trainer">Trainer</option>
-            <option value="admin">Admin</option>
-            <option value="head">Head of Department</option>
+            {(["trainee", "trainer", "admin", "head"] as Role[]).map((r) => (
+              <option key={r} value={r}>{roleLabel(r)}</option>
+            ))}
           </select>
         </div>
       ) : null}
@@ -254,12 +266,12 @@ function AssignSheet({
       </div>
 
       <div className="field">
-        <label className="label" htmlFor="as-trainer">Assigned trainer</label>
+        <label className="label" htmlFor="as-trainer">Assigned {roleLabel("trainer").toLowerCase()}</label>
         {isAdmin ? (
           <select id="as-trainer" className="select" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
             <option value="">No trainer</option>
             {staff.filter((s) => s.id !== person.id).map((s) => (
-              <option key={s.id} value={s.id}>{s.display_name}{s.role !== "trainer" ? ` (${ROLE_LABEL[s.role]})` : ""}</option>
+              <option key={s.id} value={s.id}>{s.display_name}{s.role !== "trainer" ? ` (${roleLabel(s.role)})` : ""}</option>
             ))}
           </select>
         ) : (

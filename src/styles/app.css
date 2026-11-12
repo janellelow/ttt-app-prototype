@@ -289,3 +289,4 @@ button.road__hit > svg { margin-top: 8px; color: var(--muted); }
 .road__beyond-text { margin: 4px 0 0 -9px; font-size: 13px; line-height: 1.5; color: var(--muted); max-width: 36ch; }
 @keyframes road-pulse { 50% { box-shadow: 0 0 0 10px var(--sage-tint); } }
 @media (prefers-reduced-motion: reduce) { .road__step--current .road__dot { animation: none; } }
+.badge--dept { background: var(--sage-dark); color: #fff; }
